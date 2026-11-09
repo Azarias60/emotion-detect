@@ -94,3 +94,15 @@ deploy/comfyui-int8/ComfyUI/user/
 deploy/comfyui-int8/venv/
 deploy/comfyui-int8/comfyui.log
 *.bak_*
+
+# ===== ComfyUI 代码库（comfyui/）排除项 =====
+# models 184G / 运行数据 / 平台二进制一律不入库
+comfyui/ComfyUI/models/
+comfyui/ComfyUI/input/
+comfyui/ComfyUI/output/
+comfyui/ComfyUI/temp/
+comfyui/ComfyUI/user/
+comfyui/ComfyUI/alembic_db/
+comfyui/**/__pycache__/
+comfyui/**/*.pyc
+comfyui/**/.git/

@@ -9,7 +9,7 @@ import sys
 import cv2
 import numpy as np
 
-OUT = r"E:\Comfyui\ComfyUI\No1基础包含文生图模型\ComfyUIportable\ComfyUIportable\ComfyUI\output"
+OUT = r"E:\Comfyui\ComfyUI\ComfyUI-Main\ComfyUIportable\ComfyUIportable\ComfyUI\output"
 SEG = r"E:\emotionDetect\digital-human\livetalking\guizi-character"
 PAIRS = ["idle3 to idle1", "idle1 to greet", "idle1 to talk", "talk to idle1",
          "idle2 to idle3", "talk to greet", "greet to idle1"]

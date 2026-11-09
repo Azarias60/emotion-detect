@@ -15,7 +15,7 @@ WORKFLOWS_DIR = os.path.join(PROJECT_ROOT, "workflows")
 ASSETS_DIR = os.path.join(DH_ROOT, "assets")
 
 # ---- ComfyUI 便携版（API 端口 8188）----
-COMFY_ROOT = r"E:\Comfyui\ComfyUI\No1基础包含文生图模型\ComfyUIportable\ComfyUIportable\ComfyUI"
+COMFY_ROOT = r"E:\Comfyui\ComfyUI\ComfyUI-Main\ComfyUIportable\ComfyUIportable\ComfyUI"
 COMFY_INPUT = os.path.join(COMFY_ROOT, "input")
 COMFY_OUTPUT = os.path.join(COMFY_ROOT, "output")
 SERVER = "http://127.0.0.1:8188"

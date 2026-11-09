@@ -20,7 +20,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-OUT = Path(r"E:\Comfyui\ComfyUI\No1基础包含文生图模型\ComfyUIportable\ComfyUIportable\ComfyUI\output\scail2")
+OUT = Path(r"E:\Comfyui\ComfyUI\ComfyUI-Main\ComfyUIportable\ComfyUIportable\ComfyUI\output\scail2")
 STAGE = ROOT / "runs" / "r1_stage"
 REF_SIGN = ROOT / "livetalking" / "guizi-character" / "greet.mp4"
 
