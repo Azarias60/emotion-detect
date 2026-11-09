@@ -30,15 +30,26 @@ clone yolain/ComfyUI-Easy-Use        comfyui-easy-use
 clone kijai/ComfyUI-KJNodes          comfyui-kjnodes
 clone Kosinkadink/ComfyUI-VideoHelperSuite comfyui-videohelpersuite
 clone ltdrdata/ComfyUI-Impact-Pack   comfyui-impact-pack
+clone Fannovel16/ComfyUI-Frame-Interpolation ComfyUI-Frame-Interpolation
 cd ..
 
 echo "==> 插件依赖"
-for p in ComfyUI-GGUF comfyui-easy-use comfyui-kjnodes comfyui-videohelpersuite comfyui-impact-pack; do
+for p in ComfyUI-GGUF comfyui-easy-use comfyui-kjnodes comfyui-videohelpersuite comfyui-impact-pack ComfyUI-Frame-Interpolation; do
   if [ -f "custom_nodes/$p/requirements.txt" ]; then
     echo "  --- $p"
     ./venv/bin/pip install -r "custom_nodes/$p/requirements.txt" -i https://pypi.tuna.tsinghua.edu.cn/simple || echo "  ($p 部分依赖失败，继续)"
   fi
 done
+
+echo "==> RIFE 插帧模型（interpolate_rife.py 用，20MB，包内自带）"
+mkdir -p custom_nodes/ComfyUI-Frame-Interpolation/ckpts/rife
+if [ -f rife_ckpt/rife49.pth ]; then
+  cp rife_ckpt/rife49.pth custom_nodes/ComfyUI-Frame-Interpolation/ckpts/rife/
+  echo "  ✓ rife49.pth 已就位"
+else
+  echo "  ⚠ 包内缺 rife_ckpt/rife49.pth——从 Windows 本机拷"
+  echo "    custom_nodes/ComfyUI-Frame-Interpolation/ckpts/rife/rife49.pth (20MB)"
+fi
 
 echo ""
 echo "==> 检查模型文件（models/ 需单独放到本目录下）:"
