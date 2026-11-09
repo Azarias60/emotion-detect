@@ -1,0 +1,234 @@
+{
+  "model": [
+    0,
+    1750
+  ],
+  "comfort_last_to_idle1_first": [
+    1751,
+    1826
+  ],
+  "comfort_last_to_idle2_first": [
+    1827,
+    1902
+  ],
+  "comfort_last_to_idle3_first": [
+    1903,
+    1978
+  ],
+  "comfort_last_to_talk2_first": [
+    1979,
+    2054
+  ],
+  "comfort_last_to_talk_first": [
+    2055,
+    2130
+  ],
+  "encourage_last_to_idle1_first": [
+    2131,
+    2206
+  ],
+  "encourage_last_to_idle2_first": [
+    2207,
+    2282
+  ],
+  "encourage_last_to_idle3_first": [
+    2283,
+    2358
+  ],
+  "encourage_last_to_talk2_first": [
+    2359,
+    2434
+  ],
+  "encourage_last_to_talk_first": [
+    2435,
+    2510
+  ],
+  "greet_last_to_idle1_first": [
+    2511,
+    2586
+  ],
+  "greet_last_to_idle2_first": [
+    2587,
+    2662
+  ],
+  "greet_last_to_idle3_first": [
+    2663,
+    2738
+  ],
+  "greet_last_to_talk2_first": [
+    2739,
+    2814
+  ],
+  "greet_last_to_talk_first": [
+    2815,
+    2890
+  ],
+  "idle1_last_to_comfort_first": [
+    2891,
+    2966
+  ],
+  "idle1_last_to_encourage_first": [
+    2967,
+    3042
+  ],
+  "idle1_last_to_greet_first": [
+    3043,
+    3118
+  ],
+  "idle1_last_to_idle1_first": [
+    3119,
+    3194
+  ],
+  "idle1_last_to_idle2_first": [
+    3195,
+    3270
+  ],
+  "idle1_last_to_idle3_first": [
+    3271,
+    3346
+  ],
+  "idle1_last_to_praise_first": [
+    3347,
+    3422
+  ],
+  "idle1_last_to_talk2_first": [
+    3423,
+    3498
+  ],
+  "idle1_last_to_talk_first": [
+    3499,
+    3574
+  ],
+  "idle2_last_to_comfort_first": [
+    3575,
+    3650
+  ],
+  "idle2_last_to_encourage_first": [
+    3651,
+    3726
+  ],
+  "idle2_last_to_greet_first": [
+    3727,
+    3802
+  ],
+  "idle2_last_to_idle1_first": [
+    3803,
+    3878
+  ],
+  "idle2_last_to_idle2_first": [
+    3879,
+    3954
+  ],
+  "idle2_last_to_idle3_first": [
+    3955,
+    4030
+  ],
+  "idle2_last_to_praise_first": [
+    4031,
+    4106
+  ],
+  "idle2_last_to_talk2_first": [
+    4107,
+    4182
+  ],
+  "idle2_last_to_talk_first": [
+    4183,
+    4258
+  ],
+  "idle3_last_to_comfort_first": [
+    4259,
+    4334
+  ],
+  "idle3_last_to_encourage_first": [
+    4335,
+    4410
+  ],
+  "idle3_last_to_greet_first": [
+    4411,
+    4486
+  ],
+  "idle3_last_to_idle1_first": [
+    4487,
+    4562
+  ],
+  "idle3_last_to_idle2_first": [
+    4563,
+    4638
+  ],
+  "idle3_last_to_idle3_first": [
+    4639,
+    4714
+  ],
+  "idle3_last_to_praise_first": [
+    4715,
+    4790
+  ],
+  "idle3_last_to_talk2_first": [
+    4791,
+    4866
+  ],
+  "idle3_last_to_talk_first": [
+    4867,
+    4942
+  ],
+  "praise_last_to_idle1_first": [
+    4943,
+    5018
+  ],
+  "praise_last_to_idle2_first": [
+    5019,
+    5094
+  ],
+  "praise_last_to_idle3_first": [
+    5095,
+    5170
+  ],
+  "praise_last_to_talk2_first": [
+    5171,
+    5246
+  ],
+  "praise_last_to_talk_first": [
+    5247,
+    5322
+  ],
+  "talk2_last_to_idle1_first": [
+    5323,
+    5398
+  ],
+  "talk2_last_to_idle2_first": [
+    5399,
+    5474
+  ],
+  "talk2_last_to_idle3_first": [
+    5475,
+    5550
+  ],
+  "talk2_last_to_talk2_first": [
+    5551,
+    5626
+  ],
+  "talk2_last_to_talk_first": [
+    5627,
+    5702
+  ],
+  "talk_last_to_idle1_first": [
+    5703,
+    5778
+  ],
+  "talk_last_to_idle2_first": [
+    5779,
+    5854
+  ],
+  "talk_last_to_idle3_first": [
+    5855,
+    5930
+  ],
+  "talk_last_to_talk2_first": [
+    5931,
+    6006
+  ],
+  "talk_last_to_talk_first": [
+    6007,
+    6082
+  ]
+}

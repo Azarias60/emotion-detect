@@ -1,0 +1,53 @@
+{
+  "idle1": {
+    "range": [
+      0,
+      183
+    ],
+    "frames": 184
+  },
+  "idle_to_comfort": {
+    "range": [
+      184,
+      274
+    ],
+    "frames": 91
+  },
+  "comfort": {
+    "range": [
+      275,
+      442
+    ],
+    "frames": 168
+  },
+  "comfort_to_talk": {
+    "range": [
+      443,
+      533
+    ],
+    "frames": 91
+  },
+  "talk": {
+    "range": [
+      534,
+      801
+    ],
+    "frames": 268
+  },
+  "talk_to_idle": {
+    "range": [
+      802,
+      892
+    ],
+    "frames": 91
+  },
+  "idle1_final": {
+    "range": [
+      893,
+      1076
+    ],
+    "frames": 184
+  },
+  "_total": 1077,
+  "_fps": 30
+}

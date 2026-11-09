@@ -1,0 +1,14 @@
+{
+  "pos": "A slow, even, unbroken micro-sway carries through the man's whole body for the entire shot, flowing smoothly from the first frame to the last with no pause and no change in speed. He stays fixed in the exact center of the frame - his size on screen and his distance from the camera stay exactly the same throughout, no zoom, no scale change, no position shift, no moving closer or further away. He stands facing the camera in a calm neutral pose, shoulders level, arms hanging relaxed, head up, both eyes clearly open with natural highlights looking directly at the camera, lips softly closed. He wears dark clothing. The background stays exactly as in the reference frames - an outdoor night-time scene with trees, parked vehicles and street signs, dimly lit, with no bright objects and no environment changes. The lighting and overall brightness match the reference frames exactly - no brighter and no darker, with no ambient spill, no glow and no color cast. The camera is locked and completely static at a constant distance, the brightness and color stay identical throughout, and he eases into the final frame in exactly the pose of the ending reference image.",
+  "neg": "blurry, flickering, motion blur, distorted face, deformed hands, extra limbs, morphing, warping, unstable, jump cut, scene change, character swap, different person, face change, identity change, talking, mouth opening, lips moving, smile, facial expression, breathing, chest rising, shoulders moving, shrugging, blinking, eye closing, walking, stepping, turning around, leaning, torso rotation, arm raising, arm movement, gesture, waving, pointing, hand movement, head turning, head tilting, nodding, weight shifting, hip movement, leg movement, foot movement, zooming, scale change, growing larger, getting smaller, position shift, character moving in frame, off-center, camera movement, camera pan, sudden movement, jerk, twitch, jolt, fast motion, brightness change, color shift, underexposed, too dark, dark frame, overexposed, too bright, frozen completely, static image, speeding up, slowing down, subtitles, text overlays, watermark",
+  "neg_nag": "no subtitles, text overlays, garbled text, unknown language",
+  "frames": 57,
+  "guide": 0.85,
+  "cfg": 2.5,
+  "stg_scale": 1.1,
+  "stg_blocks": "29",
+  "seeds": [
+    801
+  ],
+  "_comment": "v3@57：矩阵试验 m1 冠军组合（idle1→idle2 = 9.25 全场最佳），供逐对择优补掷用"
+}

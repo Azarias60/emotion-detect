@@ -1,0 +1,8 @@
+{
+  "spk_id": "voice_zzf2",
+  "ref_file": "data\\voices\\zzf2_ref.wav",
+  "source_file": "data\\voices\\zzf2_ref.wav",
+  "ref_text": "这是我们发明的智能情绪探测器",
+  "ref_sha256": "f53e518da3e0a25f23c3ac56de925f5c622cdbe3f0a0fe2927995b314c46ac19",
+  "model_dir": "E:\\emotionDetect\\digital-human\\livetalking\\models\\Fun-CosyVoice3-0.5B"
+}

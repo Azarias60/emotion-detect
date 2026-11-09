@@ -1,0 +1,96 @@
+# IDE & Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Version control & AI assistants
+.ai/
+.zcode/
+
+# Python Cache & Bytecode & Test Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Python Environments
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# Node & Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Logs
+*.log
+
+# Model Weights & Large Binaries（权重不入库，本地自备）
+*.pth
+*.pt
+*.onnx
+*.gguf
+*.h5
+*.dat
+# 例外：人脸 68 点关键点模型是运行必需权重
+!Emotion-Detect-py/detection_models/assets/*.dat
+
+# Media & Temporary Recordings
+*.wav
+*.mp3
+*.mp4
+*.avi
+# 例外：数字人出片模块复跑 v28 流水线必需的姿态素材（小文件）
+!digital-human/assets/pose/*.mp4
+
+# Database & SQLite（运行时数据库与上传目录）
+*.sqlite3
+*.db
+*.db-journal
+*.db-wal
+Emotion-Detect-py/data/
+
+# Sensitive Config
+.env
+.env.*.local
+
+# Generated digital-human runtime data（头像帧/上传照片/运行产物不入库）
+digital-human/livetalking/data/avatars/
+digital-human/livetalking/data/uploads/
+digital-human/livetalking/data/drop/
+digital-human/livetalking/runs/
+digital-human/runs/
+
+# 本地模型权重/缓存（体积大，按 README 自备，不入库）
+digital-human/livetalking/models/
+# 已生成的 zzf 头像帧（8G，可由 zzf-character 驱动重新生成）
+digital-human/livetalking/zzf/
+
+# Windows device-name artifact
+nul
+
+# ===== ComfyUI 部署包（2026-11-09 搬 Linux 用）=====
+# deploy/comfyui-int8/ 上传包（代码+工作流+脚本）——入 GitHub
+# deploy/models_int8/ 58G 模型副本——不入库，README 说明从哪拿
+deploy/models_int8/
+# ComfyUI 运行产物/缓存（包内 ComfyUI/ 只入代码）
+deploy/comfyui-int8/ComfyUI/models/
+deploy/comfyui-int8/ComfyUI/input/
+deploy/comfyui-int8/ComfyUI/output/
+deploy/comfyui-int8/ComfyUI/temp/
+deploy/comfyui-int8/ComfyUI/user/
+deploy/comfyui-int8/venv/
+deploy/comfyui-int8/comfyui.log
+*.bak_*

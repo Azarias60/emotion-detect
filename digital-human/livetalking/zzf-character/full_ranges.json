@@ -1,0 +1,408 @@
+{
+  "model": {
+    "range": [
+      0,
+      1750
+    ],
+    "label": "9个动作视频拼接 (idle1→idle2→idle3→greet→encourage→praise→comfort→talk→talk2)"
+  },
+  "comfort_last_to_idle1_first": {
+    "range": [
+      1751,
+      1826
+    ],
+    "label": "comfort → idle1 过渡"
+  },
+  "comfort_last_to_idle2_first": {
+    "range": [
+      1827,
+      1902
+    ],
+    "label": "comfort → idle2 过渡"
+  },
+  "comfort_last_to_idle3_first": {
+    "range": [
+      1903,
+      1978
+    ],
+    "label": "comfort → idle3 过渡"
+  },
+  "comfort_last_to_talk2_first": {
+    "range": [
+      1979,
+      2054
+    ],
+    "label": "comfort → talk2 过渡"
+  },
+  "comfort_last_to_talk_first": {
+    "range": [
+      2055,
+      2130
+    ],
+    "label": "comfort → talk 过渡"
+  },
+  "encourage_last_to_idle1_first": {
+    "range": [
+      2131,
+      2206
+    ],
+    "label": "encourage → idle1 过渡"
+  },
+  "encourage_last_to_idle2_first": {
+    "range": [
+      2207,
+      2282
+    ],
+    "label": "encourage → idle2 过渡"
+  },
+  "encourage_last_to_idle3_first": {
+    "range": [
+      2283,
+      2358
+    ],
+    "label": "encourage → idle3 过渡"
+  },
+  "encourage_last_to_talk2_first": {
+    "range": [
+      2359,
+      2434
+    ],
+    "label": "encourage → talk2 过渡"
+  },
+  "encourage_last_to_talk_first": {
+    "range": [
+      2435,
+      2510
+    ],
+    "label": "encourage → talk 过渡"
+  },
+  "greet_last_to_idle1_first": {
+    "range": [
+      2511,
+      2586
+    ],
+    "label": "greet → idle1 过渡"
+  },
+  "greet_last_to_idle2_first": {
+    "range": [
+      2587,
+      2662
+    ],
+    "label": "greet → idle2 过渡"
+  },
+  "greet_last_to_idle3_first": {
+    "range": [
+      2663,
+      2738
+    ],
+    "label": "greet → idle3 过渡"
+  },
+  "greet_last_to_talk2_first": {
+    "range": [
+      2739,
+      2814
+    ],
+    "label": "greet → talk2 过渡"
+  },
+  "greet_last_to_talk_first": {
+    "range": [
+      2815,
+      2890
+    ],
+    "label": "greet → talk 过渡"
+  },
+  "idle1_last_to_comfort_first": {
+    "range": [
+      2891,
+      2966
+    ],
+    "label": "idle1 → comfort 过渡"
+  },
+  "idle1_last_to_encourage_first": {
+    "range": [
+      2967,
+      3042
+    ],
+    "label": "idle1 → encourage 过渡"
+  },
+  "idle1_last_to_greet_first": {
+    "range": [
+      3043,
+      3118
+    ],
+    "label": "idle1 → greet 过渡"
+  },
+  "idle1_last_to_idle1_first": {
+    "range": [
+      3119,
+      3194
+    ],
+    "label": "idle1 → idle1 过渡"
+  },
+  "idle1_last_to_idle2_first": {
+    "range": [
+      3195,
+      3270
+    ],
+    "label": "idle1 → idle2 过渡"
+  },
+  "idle1_last_to_idle3_first": {
+    "range": [
+      3271,
+      3346
+    ],
+    "label": "idle1 → idle3 过渡"
+  },
+  "idle1_last_to_praise_first": {
+    "range": [
+      3347,
+      3422
+    ],
+    "label": "idle1 → praise 过渡"
+  },
+  "idle1_last_to_talk2_first": {
+    "range": [
+      3423,
+      3498
+    ],
+    "label": "idle1 → talk2 过渡"
+  },
+  "idle1_last_to_talk_first": {
+    "range": [
+      3499,
+      3574
+    ],
+    "label": "idle1 → talk 过渡"
+  },
+  "idle2_last_to_comfort_first": {
+    "range": [
+      3575,
+      3650
+    ],
+    "label": "idle2 → comfort 过渡"
+  },
+  "idle2_last_to_encourage_first": {
+    "range": [
+      3651,
+      3726
+    ],
+    "label": "idle2 → encourage 过渡"
+  },
+  "idle2_last_to_greet_first": {
+    "range": [
+      3727,
+      3802
+    ],
+    "label": "idle2 → greet 过渡"
+  },
+  "idle2_last_to_idle1_first": {
+    "range": [
+      3803,
+      3878
+    ],
+    "label": "idle2 → idle1 过渡"
+  },
+  "idle2_last_to_idle2_first": {
+    "range": [
+      3879,
+      3954
+    ],
+    "label": "idle2 → idle2 过渡"
+  },
+  "idle2_last_to_idle3_first": {
+    "range": [
+      3955,
+      4030
+    ],
+    "label": "idle2 → idle3 过渡"
+  },
+  "idle2_last_to_praise_first": {
+    "range": [
+      4031,
+      4106
+    ],
+    "label": "idle2 → praise 过渡"
+  },
+  "idle2_last_to_talk2_first": {
+    "range": [
+      4107,
+      4182
+    ],
+    "label": "idle2 → talk2 过渡"
+  },
+  "idle2_last_to_talk_first": {
+    "range": [
+      4183,
+      4258
+    ],
+    "label": "idle2 → talk 过渡"
+  },
+  "idle3_last_to_comfort_first": {
+    "range": [
+      4259,
+      4334
+    ],
+    "label": "idle3 → comfort 过渡"
+  },
+  "idle3_last_to_encourage_first": {
+    "range": [
+      4335,
+      4410
+    ],
+    "label": "idle3 → encourage 过渡"
+  },
+  "idle3_last_to_greet_first": {
+    "range": [
+      4411,
+      4486
+    ],
+    "label": "idle3 → greet 过渡"
+  },
+  "idle3_last_to_idle1_first": {
+    "range": [
+      4487,
+      4562
+    ],
+    "label": "idle3 → idle1 过渡"
+  },
+  "idle3_last_to_idle2_first": {
+    "range": [
+      4563,
+      4638
+    ],
+    "label": "idle3 → idle2 过渡"
+  },
+  "idle3_last_to_idle3_first": {
+    "range": [
+      4639,
+      4714
+    ],
+    "label": "idle3 → idle3 过渡"
+  },
+  "idle3_last_to_praise_first": {
+    "range": [
+      4715,
+      4790
+    ],
+    "label": "idle3 → praise 过渡"
+  },
+  "idle3_last_to_talk2_first": {
+    "range": [
+      4791,
+      4866
+    ],
+    "label": "idle3 → talk2 过渡"
+  },
+  "idle3_last_to_talk_first": {
+    "range": [
+      4867,
+      4942
+    ],
+    "label": "idle3 → talk 过渡"
+  },
+  "praise_last_to_idle1_first": {
+    "range": [
+      4943,
+      5018
+    ],
+    "label": "praise → idle1 过渡"
+  },
+  "praise_last_to_idle2_first": {
+    "range": [
+      5019,
+      5094
+    ],
+    "label": "praise → idle2 过渡"
+  },
+  "praise_last_to_idle3_first": {
+    "range": [
+      5095,
+      5170
+    ],
+    "label": "praise → idle3 过渡"
+  },
+  "praise_last_to_talk2_first": {
+    "range": [
+      5171,
+      5246
+    ],
+    "label": "praise → talk2 过渡"
+  },
+  "praise_last_to_talk_first": {
+    "range": [
+      5247,
+      5322
+    ],
+    "label": "praise → talk 过渡"
+  },
+  "talk2_last_to_idle1_first": {
+    "range": [
+      5323,
+      5398
+    ],
+    "label": "talk2 → idle1 过渡"
+  },
+  "talk2_last_to_idle2_first": {
+    "range": [
+      5399,
+      5474
+    ],
+    "label": "talk2 → idle2 过渡"
+  },
+  "talk2_last_to_idle3_first": {
+    "range": [
+      5475,
+      5550
+    ],
+    "label": "talk2 → idle3 过渡"
+  },
+  "talk2_last_to_talk2_first": {
+    "range": [
+      5551,
+      5626
+    ],
+    "label": "talk2 → talk2 过渡"
+  },
+  "talk2_last_to_talk_first": {
+    "range": [
+      5627,
+      5702
+    ],
+    "label": "talk2 → talk 过渡"
+  },
+  "talk_last_to_idle1_first": {
+    "range": [
+      5703,
+      5778
+    ],
+    "label": "talk → idle1 过渡"
+  },
+  "talk_last_to_idle2_first": {
+    "range": [
+      5779,
+      5854
+    ],
+    "label": "talk → idle2 过渡"
+  },
+  "talk_last_to_idle3_first": {
+    "range": [
+      5855,
+      5930
+    ],
+    "label": "talk → idle3 过渡"
+  },
+  "talk_last_to_talk2_first": {
+    "range": [
+      5931,
+      6006
+    ],
+    "label": "talk → talk2 过渡"
+  },
+  "talk_last_to_talk_first": {
+    "range": [
+      6007,
+      6082
+    ],
+    "label": "talk → talk 过渡"
+  }
+}

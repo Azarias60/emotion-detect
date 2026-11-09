@@ -1,0 +1,35 @@
+# ====================================================================
+# 多模态健康与情绪检测服务 Python 依赖清单
+# ====================================================================
+
+# 1. 基础 Web 框架与 API 服务
+fastapi>=0.115.0
+uvicorn>=0.30.0
+python-multipart>=0.0.9
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+
+# 2. 图像、视频处理与数值计算
+numpy>=1.24.0
+opencv-python>=4.8.0
+scipy>=1.10.0
+dlib>=19.24.0
+mediapipe>=0.10.0
+
+# 3. 深度学习与多模态模型
+torch>=2.0.0
+torchvision>=0.15.0
+onnxruntime>=1.17.0
+funasr>=1.0.0
+openai>=1.0.0
+# face_detection 子工程的运行时依赖（basetrainer/pybaseutils 为第三方训练框架工具包）
+basetrainer>=1.0.0
+pybaseutils>=2.4.0
+
+# 4. 硬件与音频采集（pyaudio Windows 下建议 pip install pipwin && pipwin install pyaudio）
+pyserial>=3.5
+cobs>=1.2.0
+pyaudio>=0.2.13
+
+# 5. 生理指标模型扩展（如使用 resnet_ppg_nonmixed.h5 时需要）
+# tensorflow>=2.12.0

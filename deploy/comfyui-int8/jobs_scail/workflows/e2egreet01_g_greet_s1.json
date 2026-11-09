@@ -1,0 +1,868 @@
+{
+ "3": {
+  "inputs": {
+   "text": "The person shown in the reference image stands upright in the same spot for the whole video, looking exactly as they appear in the reference image: same face, same hairstyle, same clothing, same body shape, and the same background behind them. The person gives a natural, friendly wave hello: raises one arm, waves the hand gently a few times, then lowers it again. Everything else stays steady while waving: feet planted on the ground without stepping, legs and hips completely still, torso facing forward without twisting or swaying, shoulders level, head still, lips closed. The camera is locked on a tripod and completely static, holding the same angle, distance and framing throughout, and the background stays exactly consistent with the reference image: every object in the scene is perfectly still. Stable, smooth, high quality video.",
+   "clip": [
+    "9",
+    0
+   ]
+  },
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "CLIP文本编码"
+  }
+ },
+ "4": {
+  "inputs": {
+   "text": "background moving, background swaying, background warping, camera movement, camera shake, camera zoom, camera panning, person drifting, person sliding, body swaying, weight shifting, stepping, walking, legs moving, mouth opening, talking lips, visible teeth, distorted limbs, extra fingers, deformed hands, warped face, changing face, morphing, flickering, ghosting, blurry, low quality",
+   "clip": [
+    "9",
+    0
+   ]
+  },
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "CLIP文本编码"
+  }
+ },
+ "6": {
+  "inputs": {
+   "samples": [
+    "19",
+    0
+   ],
+   "vae": [
+    "7",
+    0
+   ]
+  },
+  "class_type": "VAEDecode",
+  "_meta": {
+   "title": "VAE解码"
+  }
+ },
+ "7": {
+  "inputs": {
+   "vae_name": "wan_2.1_vae.safetensors"
+  },
+  "class_type": "VAELoader",
+  "_meta": {
+   "title": "加载VAE"
+  }
+ },
+ "9": {
+  "inputs": {
+   "clip_name": "umt5-xxl-encoder-Q4_K_M.gguf",
+   "type": "wan"
+  },
+  "class_type": "CLIPLoaderGGUF",
+  "_meta": {
+   "title": "加载CLIP"
+  }
+ },
+ "11": {
+  "inputs": {
+   "lora_name": "Wan21_I2V_14B_lightx2v_cfg_step_distill_lora_rank64.safetensors",
+   "strength_model": 0.8,
+   "model": [
+    "156",
+    0
+   ]
+  },
+  "class_type": "LoraLoaderModelOnly",
+  "_meta": {
+   "title": "LoRA加载器（仅模型）"
+  }
+ },
+ "18": {
+  "inputs": {
+   "scheduler": "simple",
+   "steps": 6,
+   "denoise": 1.0,
+   "model": [
+    "11",
+    0
+   ]
+  },
+  "class_type": "BasicScheduler",
+  "_meta": {
+   "title": "基本调度器"
+  }
+ },
+ "19": {
+  "inputs": {
+   "add_noise": true,
+   "noise_seed": 1,
+   "cfg": 1.0,
+   "model": [
+    "95",
+    0
+   ],
+   "positive": [
+    "114",
+    0
+   ],
+   "negative": [
+    "114",
+    1
+   ],
+   "sampler": [
+    "27",
+    0
+   ],
+   "sigmas": [
+    "18",
+    0
+   ],
+   "latent_image": [
+    "114",
+    2
+   ]
+  },
+  "class_type": "SamplerCustom",
+  "_meta": {
+   "title": "自定义采样器"
+  }
+ },
+ "27": {
+  "inputs": {
+   "sampler_name": "euler"
+  },
+  "class_type": "KSamplerSelect",
+  "_meta": {
+   "title": "K采样器选择"
+  }
+ },
+ "30": {
+  "inputs": {
+   "image": "ref_e2egreet01.jpg"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "加载图像"
+  }
+ },
+ "33": {
+  "inputs": {
+   "video": "se2egreet01_g_greet.mp4",
+   "force_rate": 20,
+   "custom_width": 0,
+   "custom_height": 0,
+   "frame_load_cap": [
+    "220",
+    0
+   ],
+   "skip_first_frames": 0,
+   "select_every_nth": 1,
+   "format": "Wan"
+  },
+  "class_type": "VHS_LoadVideo",
+  "_meta": {
+   "title": "Load Video (Upload) 🎥🅥🅗🅢"
+  }
+ },
+ "75": {
+  "inputs": {
+   "clip_name": "clip_vision_h.safetensors"
+  },
+  "class_type": "CLIPVisionLoader",
+  "_meta": {
+   "title": "加载CLIP视觉"
+  }
+ },
+ "76": {
+  "inputs": {
+   "crop": "none",
+   "clip_vision": [
+    "75",
+    0
+   ],
+   "image": [
+    "216",
+    0
+   ]
+  },
+  "class_type": "CLIPVisionEncode",
+  "_meta": {
+   "title": "CLIP视觉编码"
+  }
+ },
+ "85": {
+  "inputs": {
+   "detection_threshold": 0.5,
+   "max_objects": [
+    "214",
+    0
+   ],
+   "detect_interval": 2,
+   "images": [
+    "89",
+    0
+   ],
+   "model": [
+    "86",
+    0
+   ],
+   "conditioning": [
+    "87",
+    0
+   ]
+  },
+  "class_type": "SAM3_VideoTrack",
+  "_meta": {
+   "title": "SAM3 视频跟踪"
+  }
+ },
+ "86": {
+  "inputs": {
+   "ckpt_name": "sam3.1_multiplex_fp16.safetensors"
+  },
+  "class_type": "CheckpointLoaderSimple",
+  "_meta": {
+   "title": "Checkpoint加载器（简易）"
+  }
+ },
+ "87": {
+  "inputs": {
+   "text": "human",
+   "clip": [
+    "86",
+    1
+   ]
+  },
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "检测提示词"
+  }
+ },
+ "89": {
+  "inputs": {
+   "width": [
+    "212",
+    0
+   ],
+   "height": [
+    "213",
+    0
+   ],
+   "upscale_method": "lanczos",
+   "keep_proportion": "crop",
+   "pad_color": "0, 0, 0",
+   "crop_position": "center",
+   "divisible_by": 16,
+   "device": "cpu",
+   "image": [
+    "33",
+    0
+   ]
+  },
+  "class_type": "ImageResizeKJv2",
+  "_meta": {
+   "title": "Resize Image v2"
+  }
+ },
+ "91": {
+  "inputs": {
+   "detection_threshold": 0.5,
+   "max_objects": [
+    "214",
+    0
+   ],
+   "detect_interval": 2,
+   "images": [
+    "216",
+    0
+   ],
+   "model": [
+    "86",
+    0
+   ],
+   "conditioning": [
+    "87",
+    0
+   ]
+  },
+  "class_type": "SAM3_VideoTrack",
+  "_meta": {
+   "title": "SAM3 视频跟踪"
+  }
+ },
+ "92": {
+  "inputs": {
+   "images": [
+    "104",
+    1
+   ]
+  },
+  "class_type": "PreviewImage",
+  "_meta": {
+   "title": "预览图像"
+  }
+ },
+ "95": {
+  "inputs": {
+   "shift": 5.0,
+   "model": [
+    "11",
+    0
+   ]
+  },
+  "class_type": "ModelSamplingSD3",
+  "_meta": {
+   "title": "采样算法（SD3）"
+  }
+ },
+ "104": {
+  "inputs": {
+   "object_indices": "",
+   "sort_by": "left_to_right",
+   "replacement_mode": false,
+   "driving_track_data": [
+    "85",
+    0
+   ],
+   "ref_track_data": [
+    "91",
+    0
+   ]
+  },
+  "class_type": "SCAIL2ColoredMask",
+  "_meta": {
+   "title": "创建 SCAIL-2 彩色掩码"
+  }
+ },
+ "114": {
+  "inputs": {
+   "width": [
+    "89",
+    1
+   ],
+   "height": [
+    "89",
+    2
+   ],
+   "length": [
+    "204",
+    1
+   ],
+   "batch_size": 1,
+   "pose_strength": 1.0,
+   "pose_start": 0.0,
+   "pose_end": 1.0,
+   "video_frame_offset": 0,
+   "previous_frame_count": 5,
+   "replacement_mode": false,
+   "positive": [
+    "3",
+    0
+   ],
+   "negative": [
+    "4",
+    0
+   ],
+   "vae": [
+    "7",
+    0
+   ],
+   "pose_video": [
+    "89",
+    0
+   ],
+   "pose_video_mask": [
+    "104",
+    0
+   ],
+   "reference_image": [
+    "216",
+    0
+   ],
+   "reference_image_mask": [
+    "104",
+    1
+   ],
+   "clip_vision_output": [
+    "76",
+    0
+   ]
+  },
+  "class_type": "WanSCAILToVideo",
+  "_meta": {
+   "title": "WanSCAILToVideo"
+  }
+ },
+ "156": {
+  "class_type": "UNETLoader",
+  "inputs": {
+   "unet_name": "wan2.1_14B_SCAIL_2_int8_convrot.safetensors",
+   "weight_dtype": "default"
+  }
+ },
+ "175": {
+  "inputs": {
+   "fps": [
+    "178",
+    5
+   ],
+   "images": [
+    "104",
+    0
+   ]
+  },
+  "class_type": "PreviewAnimation",
+  "_meta": {
+   "title": "Preview Animation 81x704x1280"
+  }
+ },
+ "176": {
+  "inputs": {
+   "filename_prefix": "scail2/e2egreet01_g_greet_s1",
+   "format": "auto",
+   "format.codec": "auto",
+   "codec": "auto",
+   "video-preview": "",
+   "video": [
+    "177",
+    0
+   ]
+  },
+  "class_type": "SaveVideo",
+  "_meta": {
+   "title": "保存视频"
+  }
+ },
+ "177": {
+  "inputs": {
+   "fps": 20,
+   "bit_depth": 8,
+   "color_space": "sRGB",
+   "codec": "none",
+   "images": [
+    "209",
+    0
+   ]
+  },
+  "class_type": "CreateVideo",
+  "_meta": {
+   "title": "创建视频"
+  }
+ },
+ "178": {
+  "inputs": {
+   "video_info": [
+    "33",
+    3
+   ]
+  },
+  "class_type": "VHS_VideoInfo",
+  "_meta": {
+   "title": "Video Info 🎥🅥🅗🅢"
+  }
+ },
+ "182": {
+  "inputs": {
+   "width": [
+    "89",
+    1
+   ],
+   "height": [
+    "89",
+    2
+   ],
+   "length": [
+    "189",
+    1
+   ],
+   "batch_size": 1,
+   "pose_strength": 1.0,
+   "pose_start": 0.0,
+   "pose_end": 1.0,
+   "video_frame_offset": [
+    "194",
+    3
+   ],
+   "previous_frame_count": 5,
+   "replacement_mode": false,
+   "positive": [
+    "3",
+    0
+   ],
+   "negative": [
+    "4",
+    0
+   ],
+   "vae": [
+    "7",
+    0
+   ],
+   "pose_video": [
+    "89",
+    0
+   ],
+   "pose_video_mask": [
+    "104",
+    0
+   ],
+   "reference_image": [
+    "216",
+    0
+   ],
+   "reference_image_mask": [
+    "104",
+    1
+   ],
+   "clip_vision_output": [
+    "76",
+    0
+   ],
+   "previous_frames": [
+    "194",
+    2
+   ]
+  },
+  "class_type": "WanSCAILToVideo",
+  "_meta": {
+   "title": "WanSCAILToVideo"
+  }
+ },
+ "183": {
+  "inputs": {
+   "add_noise": true,
+   "noise_seed": 1,
+   "cfg": 1.0,
+   "model": [
+    "95",
+    0
+   ],
+   "positive": [
+    "182",
+    0
+   ],
+   "negative": [
+    "182",
+    1
+   ],
+   "sampler": [
+    "27",
+    0
+   ],
+   "sigmas": [
+    "18",
+    0
+   ],
+   "latent_image": [
+    "182",
+    2
+   ]
+  },
+  "class_type": "SamplerCustom",
+  "_meta": {
+   "title": "自定义采样器"
+  }
+ },
+ "184": {
+  "inputs": {
+   "samples": [
+    "183",
+    0
+   ],
+   "vae": [
+    "7",
+    0
+   ]
+  },
+  "class_type": "VAEDecode",
+  "_meta": {
+   "title": "VAE解码"
+  }
+ },
+ "185": {
+  "inputs": {
+   "start_index": 5,
+   "num_frames": 4096,
+   "images": [
+    "184",
+    0
+   ]
+  },
+  "class_type": "GetImageRangeFromBatch",
+  "_meta": {
+   "title": "Get Image or Mask Range From Batch"
+  }
+ },
+ "186": {
+  "inputs": {
+   "start_index": -1,
+   "num_frames": 16,
+   "images": [
+    "194",
+    2
+   ]
+  },
+  "class_type": "GetImageRangeFromBatch",
+  "_meta": {
+   "title": "Get Image or Mask Range From Batch"
+  }
+ },
+ "187": {
+  "inputs": {
+   "method": "reinhard_lab",
+   "source_stats": "per_frame",
+   "strength": 1.0,
+   "image_target": [
+    "185",
+    0
+   ],
+   "image_ref": [
+    "186",
+    0
+   ]
+  },
+  "class_type": "ColorTransfer",
+  "_meta": {
+   "title": "ColorTransfer"
+  }
+ },
+ "188": {
+  "inputs": {
+   "images.image0": [
+    "194",
+    2
+   ],
+   "images.image1": [
+    "187",
+    0
+   ]
+  },
+  "class_type": "BatchImagesNode",
+  "_meta": {
+   "title": "批量图像"
+  }
+ },
+ "189": {
+  "inputs": {
+   "expression": "max(0, min(c, a - b + 5))",
+   "variables.a": [
+    "33",
+    1
+   ],
+   "variables.b": [
+    "194",
+    3
+   ],
+   "variables.c": [
+    "200",
+    0
+   ]
+  },
+  "class_type": "SimpleCalculatorKJ",
+  "_meta": {
+   "title": "Curent Window Size"
+  }
+ },
+ "194": {
+  "inputs": {
+   "total": [
+    "196",
+    1
+   ],
+   "initial_value1": [
+    "6",
+    0
+   ],
+   "initial_value2": [
+    "114",
+    3
+   ]
+  },
+  "class_type": "easy forLoopStart",
+  "_meta": {
+   "title": "For循环-开始"
+  }
+ },
+ "195": {
+  "inputs": {
+   "flow": [
+    "194",
+    0
+   ],
+   "initial_value1": [
+    "188",
+    0
+   ],
+   "initial_value2": [
+    "182",
+    3
+   ]
+  },
+  "class_type": "easy forLoopEnd",
+  "_meta": {
+   "title": "For循环-结束"
+  }
+ },
+ "196": {
+  "inputs": {
+   "expression": "max(0, ceil((a - b) / (b - 5)))",
+   "variables.a": [
+    "33",
+    1
+   ],
+   "variables.b": [
+    "200",
+    0
+   ]
+  },
+  "class_type": "SimpleCalculatorKJ",
+  "_meta": {
+   "title": "Loop Count"
+  }
+ },
+ "200": {
+  "inputs": {
+   "value": 81
+  },
+  "class_type": "INTConstant",
+  "_meta": {
+   "title": "Window Size（请保持默认值）"
+  }
+ },
+ "204": {
+  "inputs": {
+   "expression": "min(a, b)",
+   "variables.a": [
+    "33",
+    1
+   ],
+   "variables.b": [
+    "200",
+    0
+   ]
+  },
+  "class_type": "SimpleCalculatorKJ",
+  "_meta": {
+   "title": "Intial Window"
+  }
+ },
+ "209": {
+  "inputs": {
+   "switch": [
+    "210",
+    0
+   ],
+   "on_false": [
+    "6",
+    0
+   ],
+   "on_true": [
+    "195",
+    0
+   ]
+  },
+  "class_type": "ComfySwitchNode",
+  "_meta": {
+   "title": "切换"
+  }
+ },
+ "210": {
+  "inputs": {
+   "comparison": "a > 0",
+   "a": [
+    "196",
+    1
+   ]
+  },
+  "class_type": "easy compare",
+  "_meta": {
+   "title": "比较"
+  }
+ },
+ "212": {
+  "inputs": {
+   "value": 704
+  },
+  "class_type": "INTConstant",
+  "_meta": {
+   "title": "宽"
+  }
+ },
+ "213": {
+  "inputs": {
+   "value": 1280
+  },
+  "class_type": "INTConstant",
+  "_meta": {
+   "title": "高"
+  }
+ },
+ "214": {
+  "inputs": {
+   "value": 1
+  },
+  "class_type": "INTConstant",
+  "_meta": {
+   "title": "最大检测目标"
+  }
+ },
+ "215": {
+  "inputs": {
+   "model": "RMBG-2.0",
+   "sensitivity": 1.0,
+   "process_res": 1024,
+   "mask_blur": 0,
+   "mask_offset": 0,
+   "invert_output": false,
+   "refine_foreground": false,
+   "background": "Color",
+   "background_color": "#000000",
+   "image": [
+    "30",
+    0
+   ]
+  },
+  "class_type": "RMBG",
+  "_meta": {
+   "title": "去除背景 (RMBG)"
+  }
+ },
+ "216": {
+  "inputs": {
+   "switch": false,
+   "on_false": [
+    "30",
+    0
+   ],
+   "on_true": [
+    "215",
+    0
+   ]
+  },
+  "class_type": "ComfySwitchNode",
+  "_meta": {
+   "title": "切换"
+  }
+ },
+ "220": {
+  "inputs": {
+   "value": 100
+  },
+  "class_type": "INTConstant",
+  "_meta": {
+   "title": "最大处理帧数"
+  }
+ },
+ "222": {
+  "inputs": {
+   "fps": [
+    "178",
+    5
+   ],
+   "images": [
+    "194",
+    2
+   ]
+  },
+  "class_type": "PreviewAnimation",
+  "_meta": {
+   "title": "Preview Animation 81x704x1280"
+  }
+ }
+}

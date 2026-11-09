@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><style>
+body { margin:0; background: linear-gradient(135deg,#000912,#00131f 55%,#000912); }
+.grid { position:absolute; inset:0; background-image:
+  linear-gradient(rgba(0,242,255,0.35) 1px, transparent 1px),
+  linear-gradient(90deg, rgba(0,242,255,0.35) 1px, transparent 1px);
+  background-size: 40px 40px; }
+video { position:absolute; left:100px; top:100px; width:350px; mix-blend-mode: screen; }
+video.noblend { left:550px; mix-blend-mode: normal; }
+</style></head><body>
+<div class="grid"></div>
+<video src="/digital-human/idle1.mp4" autoplay muted playsinline loop></video>
+<video class="noblend" src="/digital-human/idle1.mp4" autoplay muted playsinline loop></video>
+</body></html>

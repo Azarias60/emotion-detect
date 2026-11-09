@@ -1,0 +1,44 @@
+[
+  {
+    "id": "guizi",
+    "name": "鬼子",
+    "avatar": "guizi",
+    "voice": "default",
+    "note": "照片生成 · zzf 音色"
+  },
+  {
+    "id": "webtest003",
+    "name": "网测护士小雅",
+    "avatar": "webtest003",
+    "voice": "default",
+    "note": "照片生成 · 默认音色"
+  },
+  {
+    "id": "webtest004",
+    "name": "网测半身小琳",
+    "avatar": "webtest004",
+    "voice": "default",
+    "note": "照片生成 · 半身照实测"
+  },
+  {
+    "id": "webtest005",
+    "name": "网测全身小周",
+    "avatar": "webtest005",
+    "voice": "default",
+    "note": "照片生成 · 默认音色"
+  },
+  {
+    "id": "ly",
+    "name": "ly",
+    "avatar": "ly",
+    "voice": "default",
+    "note": "照片生成 · 默认音色"
+  },
+  {
+    "id": "usermw1obaam",
+    "name": "古风",
+    "avatar": "usermw1obaam",
+    "voice": "default",
+    "note": "照片生成 · 默认音色"
+  }
+]

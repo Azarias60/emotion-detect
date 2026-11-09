@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LiveTalking 数字人</title>
+  <link rel="stylesheet" href="/app.css?v=10">
+</head>
+<body>
+  <main class="app-shell">
+    <section class="avatar-panel" aria-label="数字人画面">
+      <div class="stage">
+        <canvas id="defaultCharacter" class="visual visible" aria-label="数字人"></canvas>
+        <img id="characterSource" class="media-source" src="/default-assets/character.png" alt="">
+        <video id="defaultIdle" class="media-source" src="/default-assets/idle.mp4" muted playsinline preload="auto"></video>
+        <video id="defaultTalk" class="media-source" src="/default-assets/talk.mp4?v=2" muted playsinline preload="auto"></video>
+        <video id="liveVideo" class="visual live-video" autoplay playsinline></video>
+        <div class="dance-loading" id="danceLoading" hidden>
+          <div class="dance-spinner" aria-hidden="true"><i></i><i></i><i></i></div>
+          <p>正在准备舞蹈…</p>
+        </div>
+        <div class="boot-loading" id="bootLoading" hidden>
+          <div class="dance-spinner" aria-hidden="true"><i></i><i></i><i></i></div>
+          <p id="bootLoadingText">正在加载数字人模型…</p>
+          <p class="boot-sub">首次启动约需半分钟，加载完成后即可流畅对话</p>
+        </div>
+        <div class="shade"></div>
+        <div class="topbar">
+          <span class="brand"><i></i> LIVE TALKING</span>
+          <span class="state-pill" id="statePill">轻量待机</span>
+        </div>
+        <div class="caption" id="caption">点击麦克风，开始和我说话</div>
+      </div>
+    </section>
+
+    <section class="control-panel">
+      <section id="defaultPanel" class="mode-panel active">
+        <header class="mode-header">
+          <div>
+            <p class="eyebrow">DEFAULT · LIGHT MODE</p>
+            <h1>你好，我在听</h1>
+            <p class="intro">默认进入轻量模式。麦克风音频实时发送，停顿约 0.6 秒后自动识别，无需录制或选择音频文件。</p>
+          </div>
+          <button id="enterLive" class="mode-switch primary" type="button">
+            <span>进入实时口型模式</span><b>→</b>
+          </button>
+        </header>
+
+        <div class="pipeline" aria-label="处理流程">
+          <span id="stepAsr">ASR 识别</span><b>→</b>
+          <span id="stepLlm">LLM 回复</span><b>→</b>
+          <span id="stepTts">CosyVoice3</span>
+        </div>
+
+        <div class="persona-row" id="personaRow" aria-label="人设切换"></div>
+
+        <div class="conversation" id="defaultConversation" aria-live="polite">
+          <div class="empty-message">对话内容会显示在这里</div>
+        </div>
+
+        <div class="controls">
+          <button class="mic-button" id="micButton" type="button" aria-pressed="false">
+            <span class="pulse"></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 15.25a3.25 3.25 0 0 0 3.25-3.25V6a3.25 3.25 0 0 0-6.5 0v6A3.25 3.25 0 0 0 12 15.25Z"/>
+              <path d="M18.5 11.25V12a6.5 6.5 0 0 1-13 0v-.75M12 18.5V22M8.5 22h7"/>
+            </svg>
+            <span id="micLabel">开启麦克风</span>
+          </button>
+          <form class="text-form" id="defaultForm">
+            <input id="defaultInput" maxlength="300" placeholder="也可以输入文字…" autocomplete="off">
+            <button type="submit">发送</button>
+          </form>
+        </div>
+        <p class="status-line" id="defaultStatus">麦克风尚未开启</p>
+      </section>
+
+      <section id="livePanel" class="mode-panel">
+        <header class="mode-header live-header">
+          <div>
+            <p class="eyebrow">WEBRTC · LIP SYNC</p>
+            <h1>实时口型</h1>
+            <p class="intro">音频与嘴型使用同一 WebRTC 媒体时钟播放。</p>
+            <p class="intro" id="livePersona">人设 · --</p>
+          </div>
+          <button id="leaveLive" class="mode-switch" type="button">← 返回轻量模式</button>
+        </header>
+
+        <div class="connection-card">
+          <span class="connection-dot" id="connectionDot"></span>
+          <div>
+            <strong id="connectionTitle">正在连接数字人</strong>
+            <p id="connectionDetail">正在准备模型与音视频轨道…</p>
+          </div>
+          <button id="retryLive" type="button" hidden>重试</button>
+        </div>
+
+        <div class="asset-card" id="assetCard" aria-label="数字人切换">
+          <header class="asset-head">
+            <strong>数字人</strong>
+            <button id="assetRefresh" type="button">刷新</button>
+          </header>
+          <div class="asset-group">
+            <span class="asset-label">形象 + 声音</span>
+            <div class="persona-row" id="presetChips"></div>
+            <p class="asset-hint" id="presetMixHint" hidden></p>
+          </div>
+          <div class="asset-group dance-group" id="danceGroup" hidden>
+            <span class="asset-label">表演</span>
+            <button id="danceButton" class="dance-button" type="button" disabled>跳一段舞</button>
+          </div>
+          <div class="asset-group" id="dropGroup" hidden>
+            <span class="asset-label">待生成</span>
+            <div id="dropVideos" class="drop-list"></div>
+          </div>
+          <p class="asset-hint">
+            一个名字就是一套"形象 + 声音"的固定搭配，点了两个一起换。
+            新素材放进 <code>data\drop\</code>：人物视频 <code>xxx.mp4</code>；音色
+            <code>xxx.wav</code> + 同名逐字文本 <code>xxx.txt</code>，然后点"刷新"。
+            没配对的新素材会自动配上人物训练音色（或初始形象）先跑起来。
+            换形象会重连实时画面，声音下一句生效。
+          </p>
+        </div>
+
+        <div class="conversation" id="liveConversation" aria-live="polite">
+          <div class="empty-message">连接后可直接对着麦克风说话，也可以输入文字</div>
+        </div>
+
+        <div class="controls">
+          <button class="mic-button live-mic-button" id="liveMicButton" type="button" aria-pressed="false" disabled>
+            <span class="pulse"></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 15.25a3.25 3.25 0 0 0 3.25-3.25V6a3.25 3.25 0 0 0-6.5 0v6A3.25 3.25 0 0 0 12 15.25Z"/>
+              <path d="M18.5 11.25V12a6.5 6.5 0 0 1-13 0v-.75M12 18.5V22M8.5 22h7"/>
+            </svg>
+            <span id="liveMicLabel">开启实时麦克风</span>
+          </button>
+          <form class="text-form live-form" id="liveForm">
+            <input id="liveInput" maxlength="300" placeholder="输入要对数字人说的话…" autocomplete="off" disabled>
+            <button type="submit" disabled>发送</button>
+          </form>
+          <div class="live-actions">
+            <button id="interruptLive" class="secondary-button" type="button" disabled>停止当前播报</button>
+            <button id="endLiveStream" class="end-stream-button" type="button" disabled>结束推流</button>
+          </div>
+        </div>
+        <p class="status-line">实时模式会按需建立连接；返回轻量模式后连接自动释放。</p>
+      </section>
+    </section>
+  </main>
+  <script src="/app.js?v=14"></script>
+</body>
+</html>

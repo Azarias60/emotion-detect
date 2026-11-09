@@ -1,0 +1,14 @@
+{
+  "pos": "The man remains standing in the exact center of the frame for the whole shot, his feet planted on the ground, his head level and still, with a barely perceptible, gentle breathing motion in his chest and shoulders. His facial expression is a calm, neutral, relaxed look that never changes: mouth softly closed, no smile, brows relaxed, eyes open and steady, looking directly at the camera. He wears dark clothing. The background stays exactly as in the reference frames - a night-time street with trees, parked cars and glowing shop signs - each element holding the same position, shape and brightness throughout, with no new objects and no environment changes. The lighting, brightness and colors match the reference frames exactly, the shop signs glow steadily.. The camera is locked off on a tripod: it holds the same angle, position and framing for the entire duration, with no pan, no zoom, no shake and no drift, keeping the man at exactly the same apparent size and distance. The only other movement is his smooth, gradual ease into the exact pose of the final reference frame.",
+  "neg": "deformed face, distorted face, face change, different person, identity change, deformed hands, extra limbs, morphing, warping, body distortion, jump cut, scene change, camera movement, camera pan, camera shake, zooming, scale change, position shift, off-center, motion blur, flickering, frozen completely, static image, talking, mouth opening, smile, grin, frown, exaggerated facial expression, subtitles, text overlays, watermark, underexposed, overexposed, color shift",
+  "neg_nag": "no subtitles, text overlays, garbled text, unknown language",
+  "frames": 81,
+  "guide": 0.85,
+  "cfg": 2.5,
+  "stg_scale": 1.1,
+  "stg_blocks": "29",
+  "seeds": [
+    801
+  ],
+  "_comment": "v4.2：v4 基础上删否定式亮度句（黑场源头）+ 软化 perfectly still；参数回 2.5/1.1 隔离提示词变量。"
+}

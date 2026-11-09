@@ -1,0 +1,15 @@
+{
+  "_comment": "LTX-2.3 首尾帧过渡配方（v34：STG+cfg提升+位置锁定）。三层防漂移：①图接入 LTXVSpatioTemporalGuidance scale=1.1（官方STG参数，直接管帧间稳定性，外部实测指南推荐1.0~1.4）；②cfg 1.0->2.5（cfg=1时提示词几乎不起作用，提升后锁定语才咬合；指南建议2.5~3.5不超4）；③提示词按指南加 fixed in the center of the frame, no position shift, size and distance unchanged。帧数57(2.85s，实测更短必出尾部跳变)，单段≤5s符合指南。",
+  "pos": "A slow, even, unbroken micro-sway carries through the cute stylized 3D animated character's whole body for the entire shot, flowing smoothly from the first frame to the last with no pause and no change in speed. He stays fixed in the exact center of the frame - his size on screen and his distance from the camera stay exactly the same throughout, no zoom, no scale change, no position shift, no moving closer or further away. He stands facing the camera in a calm neutral pose, feet planted firmly on the ground, shoulders level, arms hanging relaxed, head up, both eyes clearly open with natural highlights looking directly at the camera, lips softly closed. The background is a pure, solid black void with no walls, no floor, no objects and no environment details of any kind. The lighting is flat and dim, illuminating only the character himself, with no ambient spill, no glow and no color cast. The camera is locked and completely static at a constant distance, the brightness and color stay identical throughout, and he eases into the final frame in exactly the pose of the ending reference image.",
+  "neg": "blurry, flickering, motion blur, distorted face, deformed hands, extra limbs, morphing, warping, unstable, jump cut, scene change, talking, mouth opening, lips moving, smile, facial expression, breathing, chest rising, shoulders moving, shrugging, blinking, eye closing, walking, stepping, turning around, leaning, torso rotation, arm raising, arm movement, gesture, waving, pointing, hand movement, head turning, head tilting, nodding, weight shifting, hip movement, leg movement, foot movement, zooming, scale change, growing larger, getting smaller, position shift, character moving in frame, off-center, camera movement, camera pan, sudden movement, jerk, twitch, jolt, fast motion, brightness change, color shift, frozen completely, static image, speeding up, slowing down, subtitles, text overlays, watermark",
+  "neg_nag": "no subtitles, text overlays, garbled text, unknown language",
+  "frames": 57,
+  "guide": 0.85,
+  "seeds": [801],
+  "stg_scale": 1.1,
+  "stg_blocks": "29",
+  "cfg": 2.5,
+  "color_match": false,
+  "sigmas": "1., 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0",
+  "seed_default": 380733347922385
+}

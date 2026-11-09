@@ -1,0 +1,361 @@
+{
+ "1": {
+  "class_type": "CLIPLoader",
+  "inputs": {
+   "clip_name": "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+   "type": "ltxv"
+  }
+ },
+ "2": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "text": "The person remains standing in the exact center of the frame for the whole shot, looking exactly as in the reference frames: same face, same hairstyle, same clothing, same body shape. Feet planted on the ground, head level and still, with a barely perceptible, gentle breathing motion in the chest and shoulders. The facial expression is a calm, neutral, relaxed look that never changes: mouth softly closed, no smile, brows relaxed, eyes open and steady, looking directly at the camera. The camera is locked on a fixed tripod at a constant distance from the person: the distance never changes, the framing never changes, and the person's apparent size stays exactly the same from the first frame to the last, with no zoom-in, no zoom-out, no push-in, no pull-out, no dolly and no drift of any kind. The background is completely static and rock-steady: every wall, door, floor tile and object stays locked in its exact position with zero movement, zero wobble, zero shimmer and zero flicker for the entire shot, exactly matching the reference frames. The mouth stays completely closed for the entire shot: lips gently pressed together, jaw relaxed and motionless, teeth and tongue never visible. The person does not talk, does not speak, does not laugh out loud, does not yawn and never opens the mouth at any point; this is a silent, wordless pose transition only. The background stays exactly as in the reference frames: each element holding the same position, shape and brightness throughout, with no new objects and no environment changes. The lighting, brightness and colors match the reference frames exactly. The camera is locked off on a tripod: it holds the same angle, position and framing for the entire duration, with no pan, no zoom, no shake and no drift, keeping the person at exactly the same apparent size and distance. The only other movement is the smooth, gradual ease into the exact pose of the final reference frame.",
+   "clip": [
+    "1",
+    0
+   ]
+  }
+ },
+ "3": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "text": "deformed face, distorted face, face change, different person, identity change, deformed hands, extra limbs, morphing, warping, body distortion, jump cut, scene change, camera movement, camera pan, camera shake, zooming, scale change, position shift, off-center, motion blur, flickering, frozen completely, static image, talking, mouth opening, smile, grin, frown, exaggerated facial expression, subtitles, text overlays, watermark, underexposed, overexposed, color shift, open mouth, wide open mouth, laughing out loud, visible teeth, tongue, shouting, singing, speech, lip movement, rounded lips, background movement, background wobble, background shifting, background animation, camera dolly, camera push-in, camera pull-out, distance change, size change, subject moving closer, subject moving away",
+   "clip": [
+    "1",
+    0
+   ]
+  }
+ },
+ "4": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "text": "no subtitles, text overlays, garbled text, unknown language, open mouth, laughing out loud, visible teeth",
+   "clip": [
+    "1",
+    0
+   ]
+  }
+ },
+ "10": {
+  "class_type": "UNETLoader",
+  "inputs": {
+   "unet_name": "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+   "weight_dtype": "default"
+  }
+ },
+ "12": {
+  "class_type": "VAELoaderKJ",
+  "inputs": {
+   "vae_name": "ltx-2.5-video-vae-conv-bf16.safetensors",
+   "device": "main_device",
+   "weight_dtype": "bf16"
+  }
+ },
+ "13": {
+  "class_type": "LTXVAudioVAELoader",
+  "inputs": {
+   "ckpt_name": "ltx-2.5-audio-vae-bf16.safetensors"
+  }
+ },
+ "30": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "ep_greet_last.png"
+  }
+ },
+ "31": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "ep_talk_first.png"
+  }
+ },
+ "20": {
+  "class_type": "ResizeImageMaskNode",
+  "inputs": {
+   "input": [
+    "30",
+    0
+   ],
+   "resize_type": "scale dimensions",
+   "resize_type.width": 704,
+   "resize_type.height": 1280,
+   "resize_type.crop": "center",
+   "scale_method": "nearest-exact"
+  }
+ },
+ "21": {
+  "class_type": "LTXVPreprocess",
+  "inputs": {
+   "image": [
+    "20",
+    0
+   ],
+   "img_compression": 25
+  }
+ },
+ "22": {
+  "class_type": "ResizeImageMaskNode",
+  "inputs": {
+   "input": [
+    "31",
+    0
+   ],
+   "resize_type": "scale dimensions",
+   "resize_type.width": 704,
+   "resize_type.height": 1280,
+   "resize_type.crop": "center",
+   "scale_method": "nearest-exact"
+  }
+ },
+ "23": {
+  "class_type": "LTXVPreprocess",
+  "inputs": {
+   "image": [
+    "22",
+    0
+   ],
+   "img_compression": 25
+  }
+ },
+ "24": {
+  "class_type": "GetImageSize",
+  "inputs": {
+   "image": [
+    "20",
+    0
+   ]
+  }
+ },
+ "25": {
+  "class_type": "LTXVConditioning",
+  "inputs": {
+   "positive": [
+    "2",
+    0
+   ],
+   "negative": [
+    "3",
+    0
+   ],
+   "frame_rate": 25
+  }
+ },
+ "26": {
+  "class_type": "EmptyLTXVLatentVideo",
+  "inputs": {
+   "width": [
+    "24",
+    0
+   ],
+   "height": [
+    "24",
+    1
+   ],
+   "length": 25,
+   "batch_size": 1
+  }
+ },
+ "27": {
+  "class_type": "LTXVAddGuide",
+  "inputs": {
+   "positive": [
+    "25",
+    0
+   ],
+   "negative": [
+    "25",
+    1
+   ],
+   "vae": [
+    "12",
+    0
+   ],
+   "latent": [
+    "26",
+    0
+   ],
+   "image": [
+    "21",
+    0
+   ],
+   "frame_idx": 0,
+   "strength": 0.85
+  }
+ },
+ "28": {
+  "class_type": "LTXVAddGuide",
+  "inputs": {
+   "positive": [
+    "27",
+    0
+   ],
+   "negative": [
+    "27",
+    1
+   ],
+   "vae": [
+    "12",
+    0
+   ],
+   "latent": [
+    "27",
+    2
+   ],
+   "image": [
+    "23",
+    0
+   ],
+   "frame_idx": -1,
+   "strength": 0.85
+  }
+ },
+ "32": {
+  "class_type": "LTXVEmptyLatentAudio",
+  "inputs": {
+   "audio_vae": [
+    "13",
+    0
+   ],
+   "frames_number": 25,
+   "frame_rate": 25,
+   "batch_size": 1
+  }
+ },
+ "40": {
+  "class_type": "ManualSigmas",
+  "inputs": {
+   "sigmas": "1., 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0"
+  }
+ },
+ "41": {
+  "class_type": "RandomNoise",
+  "inputs": {
+   "noise_seed": 801
+  }
+ },
+ "42": {
+  "class_type": "SamplerEulerAncestral",
+  "inputs": {
+   "eta": 0,
+   "s_noise": 1
+  }
+ },
+ "43": {
+  "class_type": "CFGGuider",
+  "inputs": {
+   "model": [
+    "10",
+    0
+   ],
+   "positive": [
+    "28",
+    0
+   ],
+   "negative": [
+    "28",
+    1
+   ],
+   "cfg": 1.0
+  }
+ },
+ "44": {
+  "class_type": "LTXVConcatAVLatent",
+  "inputs": {
+   "video_latent": [
+    "28",
+    2
+   ],
+   "audio_latent": [
+    "32",
+    0
+   ]
+  }
+ },
+ "45": {
+  "class_type": "SamplerCustomAdvanced",
+  "inputs": {
+   "noise": [
+    "41",
+    0
+   ],
+   "guider": [
+    "43",
+    0
+   ],
+   "sampler": [
+    "42",
+    0
+   ],
+   "sigmas": [
+    "40",
+    0
+   ],
+   "latent_image": [
+    "44",
+    0
+   ]
+  }
+ },
+ "46": {
+  "class_type": "LTXVSeparateAVLatent",
+  "inputs": {
+   "av_latent": [
+    "45",
+    1
+   ]
+  }
+ },
+ "47": {
+  "class_type": "LTXVCropGuides",
+  "inputs": {
+   "positive": [
+    "28",
+    0
+   ],
+   "negative": [
+    "28",
+    1
+   ],
+   "latent": [
+    "46",
+    0
+   ]
+  }
+ },
+ "48": {
+  "class_type": "VAEDecodeTiled",
+  "inputs": {
+   "samples": [
+    "47",
+    2
+   ],
+   "vae": [
+    "12",
+    0
+   ],
+   "tile_size": 384,
+   "overlap": 64,
+   "temporal_size": 4096,
+   "temporal_overlap": 64
+  }
+ },
+ "50": {
+  "class_type": "VHS_VideoCombine",
+  "inputs": {
+   "images": [
+    "48",
+    0
+   ],
+   "frame_rate": 25,
+   "loop_count": 0,
+   "filename_prefix": "gzt_e2egreet01_t_greet2talk_s801",
+   "format": "video/nvenc_h264-mp4",
+   "pingpong": false,
+   "save_output": true,
+   "pix_fmt": "yuv420p",
+   "bitrate": 10,
+   "megabit": true,
+   "save_metadata": true
+  }
+ }
+}

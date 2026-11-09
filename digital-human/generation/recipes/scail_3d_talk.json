@@ -1,0 +1,7 @@
+{
+  "_comment": "SCAIL-2 3D 人物 talk 段专用配方（v4，配 可爱3D人物页面导览.png）。用户明确要求：除了嘴巴像说话一样一张一合，其他部位全部静止。依据 LTX-2 官方提示词规范：主动作开头（嘴巴说话是本段唯一动作）、字面精确、逐部位列名钉死、≤200词。与 idle/greet 配方的区别：本配方显式描述嘴部动作（talk.mp4 姿态源没有嘴部动作，嘴动只能来自提示词），并用列名方式把头/颈/肩/躯干/手臂/腿/脚全部钉住。背景仍钉纯黑虚空+照明只照角色+双眼睁开（v3 实证有效）。",
+  "prompt": "The only moving part of the cute stylized 3D animated character is his mouth: it opens and closes gently and rhythmically, like he is naturally talking to the camera. Everything else about him stays absolutely motionless - his head, neck, shoulders, torso, arms, hands, legs and feet hold one fixed pose without the slightest movement, no swaying, no shifting, no drifting and no weight change. His face wears a calm neutral expression with both eyes clearly open, bright and naturally lit, looking directly at the camera, while his eyelids and eyebrows stay perfectly still. The background is a pure, solid black void with no walls, no floor, no objects and no environment details of any kind. The lighting is flat and dim, illuminating only the character himself, with no ambient spill, no glow and no color cast. The camera is fixed and static at a constant distance. Stable, smooth, high quality video.",
+  "negative": "",
+  "force_rate": 20,
+  "fps": 20
+}

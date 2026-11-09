@@ -1,0 +1,14 @@
+{
+  "pos": "The man remains standing in the exact center of the frame for the whole shot, his feet planted on the ground, his head level and still, with a barely perceptible, gentle breathing motion in his chest and shoulders. His facial expression is a calm, neutral, relaxed look that never changes: mouth softly closed, no smile, brows relaxed, eyes open and steady, looking directly at the camera. He wears dark clothing. The background stays exactly as in the reference frames - a night-time street with trees, parked cars and glowing shop signs - each element holding the same position, shape and brightness throughout, with no new objects and no environment changes. The lighting, brightness and colors match the reference frames exactly, the shop signs glow steadily.. The camera is locked off on a tripod: it holds the same angle, position and framing for the entire duration, with no pan, no zoom, no shake and no drift, keeping the man at exactly the same apparent size and distance. The only other movement is his smooth, gradual ease into the exact pose of the final reference frame.",
+  "neg": "deformed face, distorted face, face change, different person, identity change, deformed hands, extra limbs, morphing, warping, body distortion, jump cut, scene change, camera movement, camera pan, camera shake, zooming, scale change, position shift, off-center, motion blur, flickering, frozen completely, static image, talking, mouth opening, smile, grin, frown, exaggerated facial expression, subtitles, text overlays, watermark, underexposed, overexposed, color shift",
+  "neg_nag": "no subtitles, text overlays, garbled text, unknown language",
+  "frames": 57,
+  "guide": 0.85,
+  "cfg": 2.5,
+  "stg_scale": 1.1,
+  "stg_blocks": "29",
+  "seeds": [
+    801
+  ],
+  "_comment": "v4.2 终版（2026-10-22 凌晨矩阵试验选定）：提示词=GLM v4 修订版（站定→remains standing、删否定式亮度句、表情正向锁定、tripod 镜头句、背景逐元素点名），参数=cfg 2.5/stg 1.1/57 帧/s801。矩阵实测（idle1→idle2 最差配对）：v3@81=27.40、v4@81=31.28(黑场)、v3@57=9.25、v4.2@81=14.96、v4.2@57=11.56——57 帧是关键（81 帧在新端点尾部发散），v4.2 措辞修正有效且表情/镜头锁定最强。教训：提示词动作量级要匹配段任务（过渡=渐变器）；81 帧经验来自旧端点，不可迁移。"
+}

@@ -1,0 +1,8 @@
+{
+  "spk_id": "live_spk",
+  "ref_file": "data\\voices\\_ref\\sound_ref_23615a08c6e9ee80.wav",
+  "source_file": "mp4\\sound_ref.wav",
+  "ref_text": "光之国的家是他们的故乡，初代佐菲杰克来自这地方",
+  "ref_sha256": "af9c9a24ee45a2a97e62af70484e298b346da74031d0c3d5c5f23b2acd4b243a",
+  "model_dir": "E:\\emotionDetect\\digital-human\\livetalking\\models\\Fun-CosyVoice3-0.5B"
+}

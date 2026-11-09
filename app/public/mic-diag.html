@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>麦克风诊断</title>
+<style>
+  body { font-family: 'Microsoft YaHei', sans-serif; background: #0a1219; color: #cfe8ee; padding: 24px; }
+  button { padding: 12px 28px; font-size: 16px; cursor: pointer; }
+  .r { margin-top: 14px; font-size: 15px; line-height: 1.9; white-space: pre-wrap; }
+  .ok { color: #7dfba3; font-weight: bold; }
+  .bad { color: #ff8f6b; font-weight: bold; }
+</style>
+</head>
+<body>
+<h2>浏览器麦克风链路诊断</h2>
+<button id="go">开始测试（点击后立刻对麦克风说话 2 秒 × 2 轮）</button>
+<div class="r" id="out">等待开始…</div>
+<script>
+async function rmsOf(stream, ms) {
+  const ctx = new AudioContext({ sampleRate: 16000 });
+  if (ctx.state === 'suspended') await ctx.resume();
+  const src = ctx.createMediaStreamSource(stream);
+  const an = ctx.createAnalyser();
+  an.fftSize = 512;
+  src.connect(an);
+  const buf = new Float32Array(an.fftSize);
+  let peak = 0, sum = 0, n = 0;
+  const t0 = performance.now();
+  while (performance.now() - t0 < ms) {
+    an.getFloatTimeDomainData(buf);
+    for (let i = 0; i < buf.length; i++) { const v = buf[i] * buf[i]; sum += v; peak = Math.max(peak, Math.abs(buf[i])); }
+    n += buf.length;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  stream.getTracks().forEach((t) => t.stop());
+  ctx.close();
+  return { rms: Math.sqrt(sum / Math.max(1, n)), peak };
+}
+async function testAEC(on) {
+  const cons = on
+    ? { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } }
+    : { audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } };
+  const stream = await navigator.mediaDevices.getUserMedia(cons);
+  const label = stream.getAudioTracks()[0].label;
+  const { rms, peak } = await rmsOf(stream, 2000);
+  return { label, rms, peak };
+}
+document.getElementById('go').onclick = async () => {
+  const out = document.getElementById('out');
+  out.textContent = '测试1/2：开着回声消除录 2 秒，请说话…\n';
+  try {
+    const a = await testAEC(true);
+    out.textContent += `AEC 开: RMS=${a.rms.toFixed(5)} 峰值=${a.peak.toFixed(3)} 设备=${a.label}\n`;
+  } catch (e) { out.textContent += `AEC 开: 失败 ${e.name}: ${e.message}\n`; }
+  out.textContent += '\n测试2/2：关掉回声消除录 2 秒，请说话…\n';
+  try {
+    const b = await testAEC(false);
+    out.textContent += `AEC 关: RMS=${b.rms.toFixed(5)} 峰值=${b.peak.toFixed(3)} 设备=${b.label}\n`;
+  } catch (e) { out.textContent += `AEC 关: 失败 ${e.name}: ${e.message}\n`; }
+  out.textContent += '\n结论生成中…';
+  const aRms = parseFloat((out.textContent.match(/AEC 开: RMS=([0-9.]+)/) || [])[1] || '0');
+  const bRms = parseFloat((out.textContent.match(/AEC 关: RMS=([0-9.]+)/) || [])[1] || '0');
+  let verdict;
+  if (aRms > 0.003 && bRms > 0.003) verdict = ['两条链路都有信号：浏览器采音正常（问题在页面状态/权限）', 'ok'];
+  else if (aRms <= 0.003 && bRms > 0.003) verdict = ['回声消除链路坏死（AEC开=静音，AEC关=有信号）：Windows 音频增强/浏览器AEC处理在重启后损坏', 'bad'];
+  else if (aRms <= 0.003 && bRms <= 0.003) verdict = ['两条链路都静音：浏览器拿到的流本身无信号（查 Windows 声音设置→输入设备/音量，或 Chrome/Edge 的麦克风设备选择）', 'bad'];
+  else verdict = ['AEC开有信号但AEC关静音：罕见，请把此页结果截图发给助手', 'bad'];
+  const div = document.createElement('div');
+  div.className = verdict[1];
+  div.textContent = '结论：' + verdict[0];
+  out.appendChild(div);
+  out.appendChild(Object.assign(document.createElement('div'), { textContent: '完成。' }));
+};
+</script>
+</body>
+</html>

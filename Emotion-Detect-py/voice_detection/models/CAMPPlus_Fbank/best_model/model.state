@@ -1,0 +1,11 @@
+{
+    "last_epoch": 23,
+    "version": "1.1.1",
+    "model_conf.model": "CAMPPlus",
+    "feature_method": "Fbank",
+    "loss": "AAMLoss",
+    "threshold": 0.17740601301193237,
+    "eer": 0.14711348915798367,
+    "min_dcf": 0.6942149601087156,
+    "margin": 0.22884668659266127
+}
