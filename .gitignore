@@ -106,3 +106,7 @@ comfyui/ComfyUI/alembic_db/
 comfyui/**/__pycache__/
 comfyui/**/*.pyc
 comfyui/**/.git/
+
+# 含 API key 的配置，永不入库（2026-11-11 用户要求）
+digital-human/livetalking/config.py
+digital-human/llm/config.py
