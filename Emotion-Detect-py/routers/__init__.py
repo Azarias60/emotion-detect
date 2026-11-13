@@ -9,6 +9,7 @@ from .fatigue import router as fatigue_router
 from .hardware import router as hardware_router
 from .companion import router as companion_router
 from .digital_human import router as digital_human_router
+from .voice_clone import router as voice_clone_router
 from .asr import router as asr_router
 from .instance import router as instance_router
 
@@ -20,6 +21,7 @@ api_router.include_router(fatigue_router)
 api_router.include_router(hardware_router)
 api_router.include_router(companion_router)
 api_router.include_router(digital_human_router)
+api_router.include_router(voice_clone_router)
 api_router.include_router(asr_router)
 api_router.include_router(instance_router)
 
@@ -31,6 +33,7 @@ __all__ = [
     "hardware_router",
     "companion_router",
     "digital_human_router",
+    "voice_clone_router",
     "asr_router",
     "instance_router",
 ]

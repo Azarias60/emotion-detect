@@ -1,5 +1,6 @@
 """应用生命周期：独立加载可选模型、初始化数据库、启动和关闭设备。"""
 import os
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -11,6 +12,37 @@ from management.database import init_database
 from mcu import mcu_client
 
 logger = get_logger(__name__)
+
+
+def _warm_lazy_detection_models() -> None:
+    """后台预热懒加载模型（G）：dlib 68 点、mediapipe FaceMesh、TF 血压。
+
+    三个模型都是首次检测才加载（各 2~10 秒冷启动），预热后第一次检测
+    直接全速。纯加载、不推理，失败不影响功能（首测现加载）。
+    """
+    try:
+        from core.config import LANDMARK_MODEL_PATH
+        from detection_models.fatigue_v03 import _get_landmark_tools
+
+        _get_landmark_tools(LANDMARK_MODEL_PATH)
+        logger.info("预热完成：dlib 人脸关键点模型")
+    except Exception as error:
+        logger.warning("dlib 关键点模型预热失败（首测现加载）：%s", error)
+    try:
+        from detection_models.kde_hrv import _get_face_mesh
+
+        _get_face_mesh()
+        logger.info("预热完成：mediapipe FaceMesh")
+    except Exception as error:
+        logger.warning("FaceMesh 预热失败（首测现加载）：%s", error)
+    try:
+        from core.config import BP_MODEL_PATH
+        from detection_models.kde_hrv import _get_bp_model
+
+        _get_bp_model(BP_MODEL_PATH)
+        logger.info("预热完成：血压 PPG 模型")
+    except Exception as error:
+        logger.warning("血压模型预热失败（首测现加载）：%s", error)
 
 
 @asynccontextmanager
@@ -80,6 +112,10 @@ async def lifespan(app: FastAPI):
             logger.error("数字人引擎随应用启动失败：%s", error)
     else:
         logger.info("DETECT_DH_ENGINE=0，数字人引擎不随应用启动")
+
+    # G. 后台预热懒加载模型：首次检测不再吃冷启动（不阻塞 yield 后的服务就绪）
+    threading.Thread(target=_warm_lazy_detection_models, daemon=True,
+                     name="lazy-model-warmup").start()
 
     try:
         yield

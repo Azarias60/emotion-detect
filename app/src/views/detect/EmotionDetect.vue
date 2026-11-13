@@ -4,6 +4,7 @@ import DetectionProcess from '@/components/DetectionProcess.vue'
 import { useDetectionGuard } from '@/composables/useDetectionGuard'
 import { useEmotionDetection } from '@/features/detection/useEmotionDetection'
 import { useEmotionPresentation } from '@/features/detection/useEmotionPresentation'
+import { useReportSave } from '@/features/detection/useReportSave'
 import { videoFeedUrl } from '@/api/http'
 import heartIcon from '@/assets/heart.png'
 import breathIcon from '@/assets/breath.png'
@@ -46,6 +47,26 @@ function handleStartFlow() {
     )
   )
     start()
+}
+
+// ── 保存报告（2026-11-13 新增）── 检测完一键存档，管理后台的历史记录/
+// 仪表盘/历史分析、首页"暖暖读上次结论"都靠它供数据
+const reportSave = useReportSave()
+// 解构成顶层 ref 才能被模板自动解包（嵌套 ref 在模板里是 Ref 对象，恒真）
+const { saving: reportSaving, saved: reportSaved } = reportSave
+async function saveEmotionReport() {
+  const r = result.value
+  if (!r) return
+  // 判定词截到标点为止："最终判定：平静。"不该把句号存进摘要
+  const verdict = (/最终判定[:：]\s*([^\s。；;，,]+)/.exec(r.result || '') || [])[1] || '未知'
+  const counts = r.emotion_word_count || {}
+  await reportSave.save({
+    type: 'emotion',
+    title: `情绪识别报告 · ${new Date().toLocaleString('zh-CN', { hour12: false })}`,
+    summary: `最终判定：${verdict}；喜 ${counts.喜 || 0} · 怒 ${counts.怒 || 0} · 哀 ${counts.哀 || 0} · 虑 ${counts.虑 || 0}`,
+    result: r,
+    rawReport: r.result || '',
+  })
 }
 </script>
 
@@ -138,6 +159,18 @@ function handleStartFlow() {
             <div class="btn-inner">
               <span v-if="isAnalyzing">分析中...</span>
               <span v-else>开始分析</span>
+            </div>
+          </div>
+          <div
+            v-if="result"
+            class="fui-btn btn-gold"
+            @click="saveEmotionReport"
+            :class="{ disabled: reportSaving || reportSaved }"
+          >
+            <div class="btn-inner">
+              <span v-if="reportSaving">保存中...</span>
+              <span v-else-if="reportSaved">✓ 已保存</span>
+              <span v-else>保存报告</span>
             </div>
           </div>
           <div
@@ -321,6 +354,17 @@ function handleStartFlow() {
           </div>
         </div>
         <div class="report-dialog-footer">
+          <div
+            class="fui-btn btn-gold dialog-btn"
+            @click="saveEmotionReport"
+            :class="{ disabled: reportSaving || reportSaved }"
+          >
+            <div class="btn-inner">
+              <span v-if="reportSaving">保存中...</span>
+              <span v-else-if="reportSaved">✓ 已保存到管理后台</span>
+              <span v-else>保存报告</span>
+            </div>
+          </div>
           <div class="fui-btn btn-cyan dialog-btn" @click="reportDialogVisible = false">
             <div class="btn-inner">关闭</div>
           </div>

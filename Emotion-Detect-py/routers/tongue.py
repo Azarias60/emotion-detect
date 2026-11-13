@@ -5,6 +5,8 @@ import tempfile
 
 import cv2
 from fastapi import APIRouter, Depends, HTTPException
+from starlette.concurrency import run_in_threadpool
+
 from core.responses import success
 
 from core.logger import get_logger
@@ -29,7 +31,8 @@ async def capture_and_detect_tongue(
     try:
         if not cv2.imwrite(image_path, frame):
             raise HTTPException(status_code=500, detail="摄像头画面保存失败")
-        data = analyze_tongue_image(image_path)
+        # 线程池推理：不阻塞事件循环（2026-11-11 速度优化）
+        data = await run_in_threadpool(analyze_tongue_image, image_path)
         return success(data, "舌象检测成功")
     except (ValueError, TonguePredictorError) as error:
         raise HTTPException(status_code=422, detail=str(error))

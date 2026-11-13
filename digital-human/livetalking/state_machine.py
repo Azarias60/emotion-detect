@@ -12,7 +12,7 @@ import os
 import random
 import time
 from pathlib import Path
-from threading import Thread
+from threading import RLock, Thread
 
 from utils.logger import logger
 
@@ -309,6 +309,14 @@ def setup_state_machine(
             key: value for key, value in plan["transitions_exact"].items()
             if value[1] < frame_count
         }
+        # 诊断（2026-11-13 自循环不播排查）：确认段表边与帧数过滤结果
+        logger.info(
+            "[State][diag] 段表装配: avatar=%s 帧数=%d 精确边=%d 自循环边(2,2)=%s",
+            getattr(getattr(sess, "opt", None), "avatar_id", "?"),
+            frame_count,
+            len(exact_transitions),
+            exact_transitions.get((2, 2)),
+        )
     else:
         exact_transitions = dict(transitions)
     routes = build_transition_routes(exact_transitions)
@@ -327,8 +335,13 @@ def setup_state_machine(
     sess._talk_cycle_done = False
     sess._speech_ever_active = False
     sess._speech_started = False
+    sess._speaking_now = False  # 实时说话态（complete_transition 补跳 talk 用）
     sess._pending_action = None
     sess._prefetched_target = None
+    # 最近播放过的动作 {状态号: 时间戳}——说话时连续同动作去重用
+    # （2026-11-12 用户实测：连说几句"你好"都带 greet 标签，人物每轮都跳去
+    # greet 段再跳回来，从不安定下来说话，看起来"播放逻辑混乱"）
+    sess._recent_actions: dict[int, float] = {}
     sess._current_state = random.choice(idle_types)
     sess._prev_audiotype = sess._current_state
     sess._in_talk = False
@@ -417,14 +430,40 @@ def setup_state_machine(
         sess.custom_audiotype = state
 
     def trigger_transition(from_state: int, to_state: int) -> bool:
-        if from_state == to_state and not getattr(sess, "_pending_route", None):
+        # 自过渡（idle2→idle2 自循环）：段表里有 (s,s) 精确边时播这段过渡，
+        # 让末帧姿势经 1 秒插值演回起点；没有才原地重播（旧行为）。
+        # 没有这个分支，自循环会在每轮结束硬跳一次（loop closure ~4.8）。
+        self_edge = (
+            exact_transitions.get((from_state, to_state))
+            if from_state == to_state
+            else None
+        )
+        if from_state == to_state and self_edge is None:
+            # 诊断（2026-11-13）：自循环请求但没有精确边——记录后按旧行为重播
+            logger.info(
+                "[State][diag] 自循环 %s→%s 无精确边（精确边表共 %d 条），原地重播",
+                TYPE_NAMES.get(from_state, from_state),
+                TYPE_NAMES.get(to_state, to_state),
+                len(exact_transitions),
+            )
+        if (
+            from_state == to_state
+            and self_edge is None
+            and not getattr(sess, "_pending_route", None)
+        ):
             activate(to_state)
             return False
         # 三级查找：精确直连 → 精确边多跳绕行（姿势连续）→ 兄弟泛化副本
         # （起点姿势可能与当前状态不符）→ 都没有则直切。
         route: list[int] = []
         transition_range = exact_transitions.get((from_state, to_state))
-        if transition_range is None:
+        if transition_range is None and not (
+            from_state in idle_types and to_state in idle_types
+        ):
+            # idle↔idle 不走多跳（2026-11-13）：唯一的 idle 间绕行路径是
+            # idle3→idle1→idle2，会让"每次从 idle3 回来都先摆一次 idle1 的
+            # 姿势"——用户要求 idle1 与 idle3 解绑。缺边就交给泛化/硬切，
+            # 段表注释也认为 idle 间硬切观感可接受。
             route = list(routes.get((from_state, to_state)) or [])
             if route:
                 transition_range = transitions.get((from_state, route[0]))
@@ -445,9 +484,18 @@ def setup_state_machine(
             sess._pending_route = None
             return False
         if route:
-            # 本跳只到路线上的下一个状态；complete_transition 里接力下一跳
+            # 本跳只到路线上的下一个状态；complete_transition 里接力下一跳。
+            # route 本身已含终点，route[1:] 即剩余站——原实现再追加一次
+            # to_state 会多出重复末站，绕行收尾多烧 1~2 轮空循环
+            # （2026-11-11 修复）。
             hop_target = route[0]
-            sess._pending_route = list(route[1:]) + [to_state]
+            sess._pending_route = list(route[1:])
+            logger.info(
+                "[State][route] %s → 目标 %s 途经 %s",
+                TYPE_NAMES.get(from_state, from_state),
+                TYPE_NAMES.get(to_state, to_state),
+                [TYPE_NAMES.get(x, x) for x in route],
+            )
         else:
             hop_target = to_state
             sess._pending_route = None
@@ -497,7 +545,15 @@ def setup_state_machine(
         if target is None:
             sess._in_transition = False
             return
+        # 语音沿在过渡中途触发时被 _in_transition 挡掉（go_talk 只在沿上调用，
+        # base_avatar 侧一次性触发）——到这里补跳：先记住"该张嘴"，activate 会
+        # 把 _speech_started 清掉。自循环过渡占循环 21% 时间，不补这个缺口，
+        # 每五次开口就有一次画面停在待机不动嘴。
+        resume_talk = target in idle_types and sess._speaking_now
         activate(target, reinit=False)
+        if resume_talk:
+            sess._speech_started = True
+            go_talk_if_speaking()
         pending = getattr(sess, "_pending_route", None) or []
         if pending:
             # 多跳绕行：本跳已到下一站，接力触发剩余的精确过渡
@@ -507,24 +563,71 @@ def setup_state_machine(
             return
         sess._pending_route = None
 
+    # idle 轮播权重（2026-11-13 用户二次定档）：主待机段 60% 自循环
+    # （经 idle2→idle2 过渡回到自身），idle1/idle3 各 20% 分流。
+    # 兄弟段只播一次，播完一律回主段，两者不互相绑定。
+    IDLE2_WEIGHT = 0.60
+    IDLE_BRANCH_PROB = 0.40
+
     def pick_idle(exclude: int | None = None) -> int:
-        choices = [state for state in idle_types if state != exclude]
-        return random.choice(choices or idle_types)
+        main = 2 if 2 in idle_types else (idle_types[1] if len(idle_types) > 1 else None)
+        if main is None:
+            return random.choice(idle_types)
+        # 从兄弟段（idle1/idle3）出发：一律回主段——兄弟段只播一次，不自循环，
+        # 也不互相绑定（用户 2026-11-13："这两个不能绑定"）
+        if exclude is not None and exclude != main:
+            return main
+        # 从主段出发（exclude==main，待机轮播）或动作/说话结束（exclude=None）：
+        # 主段自循环为主，偶尔分流。注意 exclude==main 时主段仍在候选里——
+        # 自循环靠 idle2→idle2 过渡段演完姿势差回到起点，不是原地重播。
+        pool = list(idle_types)
+        others = [s for s in pool if s != main]
+        if not others:
+            return main
+        share = IDLE_BRANCH_PROB / len(others)
+        weights = [1.0 - IDLE_BRANCH_PROB if s == main else share for s in pool]
+        return random.choices(pool, weights=weights, k=1)[0]
+
+    ACTION_DEDUPE_SECONDS = 20.0
 
     def advance_idle(current_speaking: bool = False) -> None:
         current = sess._current_state
         pending = sess._pending_action
         sess._pending_action = None
         if pending in action_ranges:
-            target = pending
+            last = sess._recent_actions.get(pending, 0.0)
+            if time.time() - last < ACTION_DEDUPE_SECONDS:
+                # 该动作刚播过：不再跳过去刷存在感，直接进入说话循环
+                logger.info(
+                    "[State] 动作 %s 刚播过（%.0fs 内），本轮改为直接说话",
+                    TYPE_NAMES.get(pending, pending),
+                    time.time() - last,
+                )
+                pending = None
+                sess._pending_action = None
+                if not current_speaking:
+                    target = pick_idle(current)
+                    trigger_transition(current, target)
+                    return
+                target = 8
+            else:
+                sess._recent_actions[pending] = time.time()
+                target = pending
         elif current_speaking:
             # 说话中空闲段播完：进入 talk 循环，而不是再切一个 idle
             target = 8
         else:
             target = pick_idle(current)
+        # 诊断线：验证排队动作是否真的被消费、路由走向（2026-11-11 播放混乱排查）
+        logger.info(
+            "[State] advance_idle: 当前=%s 说话=%s 排队动作=%s → 目标=%s",
+            TYPE_NAMES.get(current, current), "是" if current_speaking else "否",
+            TYPE_NAMES.get(pending, pending) if pending else "无",
+            TYPE_NAMES.get(target, target),
+        )
         trigger_transition(current, target)
 
-    def go_talk_if_speaking() -> bool:
+    def _go_talk_if_speaking_impl() -> bool:
         """Jump idle -> talk at the moment speech starts.
 
         Plain replies without an action tag begin speaking while an idle
@@ -539,7 +642,10 @@ def setup_state_machine(
         trigger_transition(sess._current_state, 8)
         return True
 
-    def on_cycle_complete(current_speaking: bool) -> None:
+    def _on_cycle_complete_impl(current_speaking: bool) -> None:
+        # 记录实时说话态：complete_transition 的说话补跳要靠它判断
+        # "过渡演完时用户是不是正在说"（_speech_started 会被 activate 清掉）
+        sess._speaking_now = current_speaking
         if sess._in_transition:
             complete_transition()
             return
@@ -570,9 +676,10 @@ def setup_state_machine(
     def supports_state(state: int) -> bool:
         return state in supported_states
 
-    def set_state(audiotype: int, reinit: bool = True):
+    def _set_state_impl(audiotype: int, reinit: bool = True):
         if audiotype == 0:
-            sess._pending_action = None
+            # 语音帧不打断编排、不清排队动作（2026-11-11 实锤：说话帧一到就把
+            # 排队的 greet/comfort 清掉，动作永远不登场）。只复位静音循环标记。
             sess._in_transition = False
             sess._transition_target = None
             sess._pending_route = None
@@ -589,6 +696,32 @@ def setup_state_machine(
         range_for(audiotype)  # validate before mutating state
         current = sess._transition_target if sess._in_transition else sess._current_state
         if current in idle_types and audiotype in action_ranges:
+            # greet＝用户跟数字人打招呼后的回礼，希望尽快登场（2026-11-13 用户
+            # 实测：旧逻辑一律排队，要等 idle2 播完（3.7 秒）才出场，用户听到
+            # 第一句回复时画面还在待机，动作与语音完全错位）。
+            #
+            # 但**只能在待机完全静止时**抢跳到 greet：set_state 来自 LLM 线程，
+            # 而 advance_idle 来自推理线程，两者共享 _current_state/_in_transition
+            # 且无锁。原设计的 _pending_action 排队就是为了让"只有推理线程驱动
+            # 状态机"——在这里直接 trigger_transition 会与推理线程正在跑的过渡
+            # 抢状态（用户实测"抢播放"：画面在两段过渡之间来回跳）。
+            # 因此：静止 → 立即登场；正在过渡 → 排队，等这一跳走完再登场。
+            if audiotype == ACTION_MAP["greet"]:
+                last = sess._recent_actions.get(audiotype, 0.0)
+                if time.time() - last < ACTION_DEDUPE_SECONDS:
+                    logger.info(
+                        "[State] greet 刚播过（%.0fs 内），本轮跳过",
+                        time.time() - last,
+                    )
+                    return None
+                if sess._in_transition or sess._pending_action is not None:
+                    sess._pending_action = audiotype
+                    logger.info("[State] greet 暂存（正在过渡/已有排队），本跳完成后登场")
+                    return None
+                sess._recent_actions[audiotype] = time.time()
+                logger.info("[State] greet 立即登场（待机静止，不等 idle 播完）")
+                trigger_transition(current, audiotype)
+                return None
             sess._pending_action = audiotype
             logger.info("[State] queued action %s", TYPE_NAMES[audiotype])
             return None
@@ -626,6 +759,29 @@ def setup_state_machine(
             TYPE_NAMES[sess._current_state],
             len(transitions),
         )
+
+    # ── 状态机串行化（2026-11-13 用户实测"互相抢"）─────────────────────────
+    # 三个入口分别来自不同线程：set_state 来自 LLM 线程（动作标签），
+    # on_cycle_complete 来自推理线程（帧循环跑完），go_talk_if_speaking 也来自
+    # 推理线程。它们共享 _current_state/_in_transition/_transition_target 且
+    # 原先无锁——LLM 线程的"greet 立即登场"可能与推理线程正在跑的 advance_idle
+    # 交叉，日志实锤同一时刻出现两条 route/transition 记录，画面在两段之间跳。
+    # RLock 可重入：on_cycle_complete → advance_idle → trigger_transition 走同一把锁。
+    # 持锁时间约 45ms（只有首 4 帧同步解码，其余预载都是后台线程），
+    # 折合推理线程最多等 1 帧，可接受。
+    _state_lock = RLock()
+
+    def set_state(audiotype: int, reinit: bool = True):
+        with _state_lock:
+            return _set_state_impl(audiotype, reinit)
+
+    def on_cycle_complete(current_speaking: bool = False) -> None:
+        with _state_lock:
+            return _on_cycle_complete_impl(current_speaking)
+
+    def go_talk_if_speaking() -> bool:
+        with _state_lock:
+            return _go_talk_if_speaking_impl()
 
     sess.set_custom_state = set_state
     sess.init_customindex = initialize

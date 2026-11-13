@@ -4,6 +4,7 @@ import DetectionShell from '@/components/DetectionShell.vue'
 import DetectionProcess from '@/components/DetectionProcess.vue'
 import { useDetectionGuard } from '@/composables/useDetectionGuard'
 import { useHealthDetection } from '@/features/detection/useHealthDetection'
+import { useReportSave } from '@/features/detection/useReportSave'
 import { videoFeedUrl } from '@/api/http'
 import { hasValue, scalePercent } from '@/utils/detectionMetrics'
 
@@ -34,6 +35,21 @@ function startConsultation() {
 }
 function requestStopConsultation() {
   if (window.confirm('提前结束可能导致综合报告不准确。确定结束并分析当前数据吗？')) stop()
+}
+
+// ── 保存报告（2026-11-13 新增）── 存档后管理后台可见历史与趋势
+const reportSave = useReportSave()
+const { saving: reportSaving, saved: reportSaved } = reportSave
+async function saveHealthReport() {
+  const r = result.value
+  if (!r) return
+  await reportSave.save({
+    type: 'health',
+    title: `健康问诊报告 · ${new Date().toLocaleString('zh-CN', { hour12: false })}`,
+    summary: `${r.health_level || '良好'} · ${r.health_score ?? '--'} 分`,
+    result: r,
+    rawReport: r.result || '',
+  })
 }
 const tongueRows = computed(() => {
   const tongue = tongueResult.value?.tongue || {}
@@ -125,6 +141,14 @@ const moduleItems = [
               提前结束并分析</button
             ><button v-if="phase === 'complete'" class="tech-button" @click="resetConsultation">
               重新问诊
+            </button>
+            <button
+              v-if="phase === 'complete'"
+              class="tech-button gold"
+              :disabled="reportSaving || reportSaved"
+              @click="saveHealthReport"
+            >
+              {{ reportSaving ? '保存中…' : reportSaved ? '✓ 已保存' : '保存报告' }}
             </button>
           </div>
           <p v-if="errorMessage" class="error-text">{{ errorMessage }}</p>

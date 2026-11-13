@@ -72,11 +72,15 @@ class DetectionService:
         return {**data, "result": report, "emotion_word_count": counts}
 
     async def health(self, temp_dir, video_path, tongue, questions, answers):
-        physiological = self.analyze_fatigue(video_path) if video_path else {}
+        # 重活全部进线程池：dlib/mediapipe/LLM 任一在事件循环里直跑都会把
+        # /video_feed 和所有接口卡住（2026-11-11 速度优化）
+        physiological = await run_in_threadpool(self.analyze_fatigue, video_path) if video_path else {}
         voice_segments = await self.voice_segments(temp_dir)
-        heart_rate = self.heart_rate(video_path)
+        heart_rate = await run_in_threadpool(self.heart_rate, video_path)
         temperature = self.device.get_temperature_summary()
-        report = self.health_report(tongue, questions, answers, physiological, heart_rate, temperature, voice_segments=voice_segments)
+        report = await run_in_threadpool(
+            self.health_report, tongue, questions, answers,
+            physiological, heart_rate, temperature, voice_segments=voice_segments)
         return {
             "tongue": tongue, "questions": questions, "answers": answers,
             "voice_segments": voice_segments, "physiological": physiological,

@@ -99,6 +99,12 @@ VIDEO_SUFFIXES = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".flv"}
 IMAGE_RE = re.compile(r"\.[jpJP][pnPN]*[gG]$")
 ACTIVE_VOICE_FILE = VOICES_DIR / "_active.json"
 
+# 投递音色的显示名（data/drop/<id>.wav）：id 是内部标识，页面要给人看中文
+VOICE_LABELS = {
+    "official_male": "男声 · 备用（真人男声）",
+    "official_female": "女声 · 备用（真人女声·主持）",
+}
+
 _lock = threading.RLock()
 _opt = None
 _jobs: dict[str, dict] = {}
@@ -371,7 +377,7 @@ def list_voices() -> list[dict]:
             continue
         result.append({
             "id": stem,
-            "name": stem,
+            "name": VOICE_LABELS.get(stem, stem),
             "type": "ref",
             "hasText": (DROP_DIR / f"{stem}.txt").is_file(),
         })
@@ -500,10 +506,16 @@ def list_presets() -> list[dict]:
             )
         )
 
+    # 投递箱的克隆/官方音色（type=ref）不再冒充数字人：它们是音色素材，
+    # 绑定（presets.json voice 字段）后才随人物出现；未绑定的只留在音色
+    # 清单里。原兜底会把 official_male / vc_xxx 生成假"数字人"卡片
+    # （2026-11-12 页面截图实锤，用户点了会报"人物素材不存在"）。
     default_avatar = _default_avatar_id()
     for voice in list_voices():
         voice_id = voice["id"]
         if voice_id == "default" or voice_id in seen_voices:
+            continue
+        if voice.get("type") == "ref":
             continue
         seen_voices.add(voice_id)
         result.append(
@@ -657,6 +669,80 @@ def start_avatar_generation(name: str) -> tuple[bool, str]:
         }
     logger.info("[Assets] 开始生成人物 %s（pid %s）", name, proc.pid)
     return True, f"开始生成人物 {name}，完成后可在人物列表切换"
+
+
+# 内置人物（页面「zzf / yy」两个固定预设的锚点素材），不允许从页面删除
+PROTECTED_AVATARS = {"my_avatar", "yy"}
+
+
+def delete_avatar(avatar_id: str) -> tuple[bool, str]:
+    """删除一个数字人：素材目录 + presets.json 注册 + 帧缓存 + 产线工作目录。
+
+    保护规则：
+    - 内置素材（my_avatar / yy）不可删——「zzf」「yy」两个固定预设靠它们；
+    - 正在被实时会话使用的形象不可删（先在页面上切换/断开再删）；
+    - 引擎默认形象不可删（重启会起不来）。
+    """
+    import shutil
+
+    if not _safe_id(avatar_id):
+        return False, "人物名只能用英文、数字、下划线和短横线"
+    if avatar_id in PROTECTED_AVATARS:
+        return False, "内置人物（zzf / yy 的素材）不允许删除"
+    if avatar_id == _default_avatar_id():
+        return False, "默认形象不允许删除，请先把引擎默认形象换成别的"
+    target = AVATARS_DIR / avatar_id
+    if not target.is_dir():
+        return False, f"人物 {avatar_id} 不存在"
+    with _lock:
+        job = _jobs.get(avatar_id)
+        if job and job.get("status") == "running":
+            return False, f"{avatar_id} 正在生成中，不能删除"
+
+    # 有活跃会话正在用这个形象 → 拒绝（素材目录删了会话会当场崩）
+    try:
+        from server.session_manager import session_manager
+        for sess in list(session_manager.sessions.values()):
+            if sess is None:
+                continue
+            if getattr(getattr(sess, "opt", None), "avatar_id", "") == avatar_id:
+                return False, f"{avatar_id} 正在被实时会话使用，请先切换到别的数字人再删除"
+    except Exception:
+        pass
+
+    try:
+        shutil.rmtree(target)
+    except OSError as exc:
+        return False, f"删除素材目录失败：{exc}"
+
+    # 1) presets.json 里相关条目（同 id 或同 avatar）一并移除
+    presets_path = ROOT / "data" / "presets.json"
+    if presets_path.is_file():
+        try:
+            specs = json.loads(presets_path.read_text(encoding="utf-8"))
+            if isinstance(specs, list):
+                specs = [s for s in specs
+                         if not (isinstance(s, dict) and
+                                 (s.get("id") == avatar_id or s.get("avatar") == avatar_id))]
+                presets_path.write_text(
+                    json.dumps(specs, ensure_ascii=False, indent=2), encoding="utf-8")
+        except (OSError, ValueError) as exc:
+            logger.warning("[Assets] 清理 presets.json 失败（人物 %s）: %s", avatar_id, exc)
+
+    # 2) 驱逐已加载的帧缓存（下次连同名人物会重新从盘加载）
+    try:
+        import app as app_module
+        app_module.global_avatars.pop(avatar_id, None)
+    except Exception:
+        pass
+
+    # 3) 产线工作目录（segments/workflows 等，删了不影响引擎）
+    studio_dir = ROOT.parent / "runs" / "make_avatar" / avatar_id
+    if studio_dir.is_dir():
+        shutil.rmtree(studio_dir, ignore_errors=True)
+
+    logger.info("[Assets] 已删除人物 %s（含 presets 注册与产线工作目录）", avatar_id)
+    return True, f"人物 {avatar_id} 已删除"
 
 
 def _refresh_jobs() -> None:

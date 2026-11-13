@@ -1,0 +1,261 @@
+{
+  "plugin_root": "C:\\Users\\admin\\.zcode\\cli\\plugins\\cache\\zcode-plugins-official\\video-agent-kit\\0.4.3",
+  "platform": "windows",
+  "python": "E:\\Python\\Python38\\python.exe",
+  "pip_index": "https://pypi.tuna.tsinghua.edu.cn/simple",
+  "checks": [
+    {
+      "id": "py",
+      "label": "python3 ≥ 3.10",
+      "status": "missing",
+      "detail": "3.8.10 at E:\\Python\\Python38\\python.exe",
+      "why": "hook 与 MCP server 用了 3.10+ 运行时语法 (X | Y 类型别名)",
+      "need": "Python 3.10 或更高 (CC 调 hook/MCP 用的就是这个解释器)",
+      "auto": false,
+      "soft": false,
+      "fix": [
+        "# 换一个 3.10+ 解释器, 例如 conda create -n va python=3.12"
+      ]
+    },
+    {
+      "id": "py-pip",
+      "label": "python 包管理: pip (非 PEP 668 外部托管)",
+      "status": "skip",
+      "detail": "前置 py 未通过, 跳过",
+      "why": "所有 auto 修复都靠 pip 装 — pip 缺失或被 externally-managed 拦住时, 一个包都装不上",
+      "need": "pip 可用, 且不是 externally-managed 环境 (系统 Python 常被 PEP 668 锁; 用 venv/pipx 最稳)",
+      "auto": false,
+      "soft": false,
+      "fix": []
+    },
+    {
+      "id": "py-mcp",
+      "label": "python 包: mcp (1.x)",
+      "status": "skip",
+      "detail": "前置 py-pip 未通过, 跳过",
+      "why": "MCP server 本体 — 缺则所有剪辑工具都不存在",
+      "need": "pip 包 mcp>=1.0.0,<2.0.0 (装进上面那个解释器, 不是系统里随便哪个 python)",
+      "auto": true,
+      "soft": false,
+      "fix": []
+    },
+    {
+      "id": "py-requests",
+      "label": "python 包: requests",
+      "status": "skip",
+      "detail": "前置 py-pip 未通过, 跳过",
+      "why": "cloud ASR / cloud TTS 的 HTTP 调用 — 缺则转录和 TTS 全废",
+      "need": "pip 包 requests>=2.31.0 (装进上面那个解释器)",
+      "auto": true,
+      "soft": false,
+      "fix": []
+    },
+    {
+      "id": "py-cv2",
+      "label": "python 包: cv2",
+      "status": "skip",
+      "detail": "前置 py-pip 未通过, 跳过",
+      "why": "video_ingest 抽帧 / 局部复看 / QC 扫描",
+      "need": "pip 包 opencv-python-headless>=4.8.0,<5.0.0 (装进上面那个解释器)",
+      "auto": true,
+      "soft": false,
+      "fix": []
+    },
+    {
+      "id": "py-numpy",
+      "label": "python 包: numpy",
+      "status": "skip",
+      "detail": "前置 py-pip 未通过, 跳过",
+      "why": "抽帧索引与帧差计算",
+      "need": "pip 包 numpy>=1.24.0 (装进上面那个解释器)",
+      "auto": true,
+      "soft": false,
+      "fix": []
+    },
+    {
+      "id": "py-PIL",
+      "label": "python 包: PIL",
+      "status": "skip",
+      "detail": "前置 py-pip 未通过, 跳过",
+      "why": "contact sheet 拼图 (模型能看到的那张图)",
+      "need": "pip 包 pillow>=10.0.0 (装进上面那个解释器)",
+      "auto": true,
+      "soft": false,
+      "fix": []
+    },
+    {
+      "id": "py-jieba",
+      "label": "python 包: jieba",
+      "status": "skip",
+      "detail": "前置 py-pip 未通过, 跳过",
+      "why": "subtitle_build 的中文分词/词性 — 缺则字幕断行不可用",
+      "need": "pip 包 jieba>=0.42.1 (装进上面那个解释器)",
+      "auto": true,
+      "soft": false,
+      "fix": []
+    },
+    {
+      "id": "py-fontTools",
+      "label": "python 包: fontTools",
+      "status": "skip",
+      "detail": "前置 py-pip 未通过, 跳过",
+      "why": "字体 cmap 校验 (烧字幕前拦下豆腐块)",
+      "need": "pip 包 fonttools>=4.40.0 (装进上面那个解释器)",
+      "auto": true,
+      "soft": false,
+      "fix": []
+    },
+    {
+      "id": "py-scenedetect",
+      "label": "python 包: scenedetect",
+      "status": "skip",
+      "detail": "前置 py-pip 未通过, 跳过",
+      "why": "recap 流水线的镜头边界检测 (shots)",
+      "need": "pip 包 scenedetect>=0.6, **必须 --no-deps 装** + 它的三个纯 python 依赖",
+      "auto": true,
+      "soft": false,
+      "fix": []
+    },
+    {
+      "id": "cv2-clean",
+      "label": "cv2 无 GUI/headless 混装",
+      "status": "skip",
+      "detail": "前置 py-cv2 未通过, 跳过",
+      "why": "混装会让 cv2 半坏: import 成功但抽帧崩在 libGL",
+      "need": "只装 opencv-python-headless 一个 (不要同时装 opencv-python)",
+      "auto": false,
+      "soft": false,
+      "fix": []
+    },
+    {
+      "id": "ffmpeg",
+      "label": "ffmpeg + ffprobe",
+      "status": "missing",
+      "detail": "PATH 上找不到: ffmpeg ffprobe",
+      "why": "剪切 / 渲染 / 抽帧 / 时长探测 —— 缺了整条流水线都起不来",
+      "need": "ffmpeg (含 ffprobe), 且在 PATH 上 —— 版本不挑, 4.3 起都行 (xfade 要 4.3+)",
+      "auto": false,
+      "soft": false,
+      "fix": [
+        "# winget 没有镜像概念, ffmpeg 静态包来自 gyan.dev, 国内可能慢;",
+        "winget install --id Gyan.FFmpeg -e",
+        "# 或 choco install ffmpeg / scoop install ffmpeg",
+        "# 装完新开一个终端, 否则 PATH 不刷新",
+        "# 想走国内镜像 / 无 root / 不动系统包管理器 → 任何平台都用 conda:",
+        "#   conda install -c https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge ffmpeg   # 清华镜像"
+      ]
+    },
+    {
+      "id": "ffmpeg-encoders",
+      "label": "ffmpeg 带 libx264/aac/libmp3lame",
+      "status": "skip",
+      "detail": "前置 ffmpeg 未通过, 跳过",
+      "why": "渲染最后一步的编码; 缺了前面白跑",
+      "need": "ffmpeg 编译时带 libx264、aac、libmp3lame (`ffmpeg -encoders` 能看到)",
+      "auto": false,
+      "soft": false,
+      "fix": []
+    },
+    {
+      "id": "ffmpeg-filters",
+      "label": "ffmpeg 带 libass/libfreetype",
+      "status": "skip",
+      "detail": "前置 ffmpeg 未通过, 跳过",
+      "why": "字幕烧录 + 标题卡/角标 + 段间溶解",
+      "need": "ffmpeg 编译时带 libass (subtitles/ass 滤镜) 和 libfreetype (drawtext)",
+      "auto": false,
+      "soft": false,
+      "fix": []
+    },
+    {
+      "id": "font-cjk",
+      "label": "中文字体 (真能写中文的)",
+      "status": "ok",
+      "detail": "C:\\Windows\\Fonts\\msyh.ttc; family=Noto Sans SC",
+      "why": "字幕烧录 / 标题卡 / 比分角标 / contact sheet 标签",
+      "need": "一个覆盖中日韩字形的字体文件; 首选 Noto Sans CJK, 系统自带的雅黑/苹方/AR PL UMing 也算 (mac/Win 一般已自带)",
+      "auto": false,
+      "soft": false,
+      "fix": []
+    },
+    {
+      "id": "asr-cred",
+      "label": "语音转录通道",
+      "status": "skip",
+      "detail": "前置 py-requests 未通过, 跳过",
+      "why": "speech_transcribe — 缺则没有转录, 语音类任务全瘸",
+      "need": "ZCode 中无需配置 (宿主注入身份); 其他宿主需远端 Speech MCP, 或直连兼容后端 VE_SPEECH_ASR_ENDPOINT + RESOURCE_ID + API_KEY",
+      "auto": false,
+      "soft": true,
+      "fix": []
+    },
+    {
+      "id": "tts-cred",
+      "label": "语音合成通道",
+      "status": "skip",
+      "detail": "前置 py-requests 未通过, 跳过",
+      "why": "speech_synthesize / 解说旁白合成 — recap 类任务的必需项",
+      "need": "ZCode 中无需配置 (宿主注入身份); 其他宿主需远端 Speech MCP, 或直连兼容后端 VE_SPEECH_TTS_ENDPOINT + MODEL + API_KEY",
+      "auto": false,
+      "soft": true,
+      "fix": []
+    },
+    {
+      "id": "speech-net",
+      "label": "直连兼容端点可达",
+      "status": "skip",
+      "detail": "前置 py-requests 未通过, 跳过",
+      "why": "只在自带直连语音服务时适用",
+      "need": "配了直连兼容端点时能访问 configured compatibility speech endpoint",
+      "auto": false,
+      "soft": true,
+      "fix": []
+    },
+    {
+      "id": "disk",
+      "label": "项目盘可用空间 ≥ 5G",
+      "status": "ok",
+      "detail": "E:\\emotionDetect 剩余 495.0G",
+      "why": "预览/成片 mp4 + 抽帧图落在项目目录",
+      "need": "E:\\emotionDetect 所在盘 ≥ 5G 空闲 (长视频 recap 要更多)",
+      "auto": false,
+      "soft": true,
+      "fix": []
+    }
+  ],
+  "missing": [
+    "py",
+    "py-pip",
+    "py-mcp",
+    "py-requests",
+    "py-cv2",
+    "py-numpy",
+    "py-PIL",
+    "py-jieba",
+    "py-fontTools",
+    "py-scenedetect",
+    "cv2-clean",
+    "ffmpeg",
+    "ffmpeg-encoders",
+    "ffmpeg-filters",
+    "asr-cred",
+    "tts-cred",
+    "speech-net"
+  ],
+  "blocking": [
+    "py",
+    "py-pip",
+    "py-mcp",
+    "py-requests",
+    "py-cv2",
+    "py-numpy",
+    "py-PIL",
+    "py-jieba",
+    "py-fontTools",
+    "py-scenedetect",
+    "cv2-clean",
+    "ffmpeg",
+    "ffmpeg-encoders",
+    "ffmpeg-filters"
+  ]
+}

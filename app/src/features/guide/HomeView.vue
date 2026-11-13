@@ -23,6 +23,10 @@ const MODULE_META = {
   health: { title: '健康问诊', subtitle: '舌象 · 心率 · 综合分析', path: '/detect/health' },
   fatigue: { title: '疲劳检测', subtitle: '眨眼 · 哈欠 · 疲劳评估', path: '/detect/fatigue' },
   emotion: { title: '情绪识别', subtitle: '表情 · 语音 · 情绪状态', path: '/detect/emotion' },
+  // 引擎 LLM_REC_REASONS 里明确有 companion（"情感数字人陪你聊聊天"）：
+  // 以前这里缺项，语音在说陪伴页、推荐卡却显示健康问诊，按钮跳错模块
+  // （2026-11-13 补全，与下方 modules 数组保持一致）
+  companion: { title: '情感数字人', subtitle: '陪伴 · 对话 · 心理支持', path: '/detect/companion' },
 }
 
 // 引擎就绪后开放对话控制台；引擎加载中/不可达时只有动画数字人静立待机
@@ -71,6 +75,18 @@ const statusText = computed(() => {
   if (resetHint.value) return resetHint.value
   if (talk.needPlayTap.value) return '点一下页面任意处，开启暖暖的语音'
   return talk.connectionDetail.value || '暖暖正在醒来，请稍等…'
+})
+
+// 页头状态灯（2026-11-13）：灯色/文案跟随真实连接与麦克风状态
+const headerState = computed(() => {
+  if (talk.micYielded.value) return { text: '本窗口已静音', cls: 'muted' }
+  if (talk.connection.value === 'connected') {
+    if (talk.speaking.value) return { text: '暖暖说话中', cls: 'live' }
+    if (talk.busy.value) return { text: '思考中', cls: 'live' }
+    return { text: talk.listening.value ? '聆听中' : '待机中', cls: 'live' }
+  }
+  if (talk.connection.value === 'connecting') return { text: '连接中', cls: 'wait' }
+  return { text: '未连接', cls: 'off' }
 })
 
 
@@ -131,37 +147,63 @@ const GUIDE = {
 onMounted(() => {
   if (!feedDoc.value) pushDoc(GUIDE)
   talk.init()
+  // 检测结果回读（2026-11-13 重写）：
+  // 以前挂在 connection 的 watch 上，而 useHomeGuide 是模块级单例——
+  // "首页→检测页→返回首页"时连接一直是 connected，watch 根本不触发
+  // （功能在主场景下死亡）；整页刷新又会重复朗读同一份报告。
+  // 现在：挂载即查一次，已读报告 id 记 localStorage，30 分钟去重。
+  void readLatestReport()
 })
 
-// 检测结果回读（用户拍板 2026-10-23）：登录用户做完检测回到首页，
-// 暖暖语音讲一句关键结论 + 资料卡展示要点；报告读不到时静默跳过。
-const reportRead = ref(false)
-watch(
-  () => talk.connection.value,
-  async (state) => {
-    if (state !== 'connected' || reportRead.value) return
-    reportRead.value = true
-    const token = localStorage.getItem('emotion-token')
-    if (!token) return // 游客不回读
-    let latest = null
-    try {
-      const res = await queryReports({ pageNum: 1, pageSize: 1 })
-      const rows = res?.data?.rows || res?.data || []
-      latest = rows[0] || null
-    } catch {
-      return
-    }
-    if (!latest || !latest.summary) return
-    const points = latest.summary
-      .split(/[;；。\n]/)
-      .map((t) => t.trim())
-      .filter((t) => t.length >= 4)
-      .slice(0, 4)
-    if (!points.length) return
-    pushDoc({ title: `上次检测 · ${latest.title || '健康报告'}`, points })
-    talk.speak(`欢迎回来。你上次做的${latest.title || '检测'}结果在这儿：${points.slice(0, 2).join('，')}。要看完整内容，可以看右边的资料卡。`)
-  },
-)
+const REPORT_READ_TTL = 30 * 60 * 1000
+
+async function readLatestReport() {
+  const token = localStorage.getItem('emotion-token')
+  if (!token) return // 游客不回读
+  let latest = null
+  try {
+    const res = await queryReports({ pageNum: 1, pageSize: 1 })
+    // 后端 /report 返回 { total, items, pageNum, pageSize }——以前读的是
+    // 不存在的 rows 字段，静默取空（双重失效）
+    latest = res?.data?.items?.[0] || null
+  } catch {
+    return
+  }
+  if (!latest || !latest.summary) return
+  const readKey = `home-report-read:${latest.id}`
+  const lastRead = Number(localStorage.getItem(readKey) || 0)
+  if (Date.now() - lastRead < REPORT_READ_TTL) return
+  const points = String(latest.summary)
+    .split(/[;；。\n]/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 4)
+    .slice(0, 4)
+  if (!points.length) return
+  // 资料卡按 path 去重：speak 失败时不写已读 key，下次挂载会重试——
+  // 不先去重就会往资料栏堆同一张卡（DeepSeek 审查 P2-12）
+  if (feedDoc.value?.path === `/management/reports/${latest.id}`) feedDoc.value = null
+  pushDoc({
+    title: `上次检测 · ${latest.title || '健康报告'}`,
+    points,
+    path: `/management/reports/${latest.id}`,
+    linkLabel: '查看完整报告 →',
+  })
+  // 等当前话轮说完再播报，避免打断打招呼（最多等 60 秒）；
+  // 等待期间离开首页要能收手（DeepSeek 审查 P2-19）——用路由路径判断，
+  // SPA 跳转与关标签页都覆盖
+  const onHome = () => ['/', '/home'].includes(router.currentRoute.value.path)
+  for (let i = 0; i < 12 && onHome(); i += 1) {
+    if (!talk.busy.value && !talk.speaking.value) break
+    await new Promise((r) => setTimeout(r, 5000))
+  }
+  if (!onHome()) return
+  const spoken = talk.speak(
+    `欢迎回来。你上次做的${latest.title || '检测'}结果在这儿：${points
+      .slice(0, 2)
+      .join('，')}。要看完整内容，可以看右边的资料卡。`,
+  )
+  if (spoken) localStorage.setItem(readKey, String(Date.now()))
+}
 
 // LLM 回答要点自动进资料栏：预置指引被第一条真实回答覆盖（可关闭，再问再出）
 watch(
@@ -243,8 +285,16 @@ function sendMicText() {
   const text = micText.value.trim()
   if (!text) return
   if (talk.needPlayTap.value) talk.tapPlay()
-  talk.sendText(text)
-  micText.value = ''
+  // 发送失败（ws 竞态关闭等）时保留输入框内容，别让用户的话静默丢失
+  // （2026-11-13 修复：以前无条件清空）
+  if (talk.sendText(text)) micText.value = ''
+}
+
+// 中文输入法守卫：IME 确认候选词时也会触发 keyup.enter（2026-11-13）
+const composing = ref(false)
+function onConsoleEnter() {
+  if (composing.value) return
+  sendMicText()
 }
 
 function acceptRecommend() {
@@ -272,8 +322,10 @@ function acceptRecommend() {
         </div>
       </div>
       <div class="home-header-right">
-        <div class="system-state">
-          <span></span>{{ recommendModule ? '已为你推荐 · 见右侧' : '聆听中' }}
+        <!-- 状态灯绑定真实连接态（2026-11-13）：以前恒亮绿灯+「聆听中」，
+             引擎没连上/被静音时也在装听 -->
+        <div class="system-state" :class="headerState.cls">
+          <span></span>{{ headerState.text }}
         </div>
       </div>
     </header>
@@ -293,6 +345,14 @@ function acceptRecommend() {
         <div class="asr-panel">
           <div class="asr-row-top">
             <span class="asr-state" :class="{ on: talk.listening.value }">{{ talk.listening.value ? '● 常听中' : '○ 未开麦' }}</span>
+            <!-- 麦克风手动开关（2026-11-13）：常听页必须给隐私开关，
+                 开麦失败时也有手动恢复入口 -->
+            <button
+              class="asr-mic-btn"
+              :class="{ on: talk.listening.value }"
+              :title="talk.listening.value ? '点击关闭麦克风' : '点击开启麦克风'"
+              @click="talk.toggleMic()"
+            >{{ talk.listening.value ? '静音' : '开麦' }}</button>
             <span class="asr-device" :title="talk.micLabel.value">{{ (talk.micLabel.value || '获取设备中…').split(' (')[0] }}</span>
           </div>
           <div class="asr-meter"><i :style="{ width: Math.round(talk.micLevel.value * 100) + '%' }"></i></div>
@@ -362,7 +422,9 @@ function acceptRecommend() {
             class="ctl-input"
             placeholder="不方便说话时，也可以打字"
             :disabled="talk.connection.value !== 'connected'"
-            @keyup.enter="sendMicText"
+            @keyup.enter="onConsoleEnter"
+            @compositionstart="composing = true"
+            @compositionend="composing = false"
           />
           <button class="ctl-send" :disabled="talk.connection.value !== 'connected'" @click.stop="sendMicText">发送</button>
         </div>
@@ -411,6 +473,23 @@ function acceptRecommend() {
   background: #00efbc;
   box-shadow: 0 0 9px #00efbc;
   animation: pulse 1.6s infinite;
+}
+/* 状态灯颜色跟随真实连接态（2026-11-13） */
+.system-state.off span {
+  background: #556;
+  box-shadow: none;
+  animation: none;
+}
+.system-state.wait span {
+  background: #ffb02e;
+  box-shadow: 0 0 9px #ffb02e;
+}
+.system-state.muted {
+  color: #ffd9a8;
+}
+.system-state.muted span {
+  background: #ff9d2e;
+  box-shadow: 0 0 9px #ff9d2e;
 }
 .home-screen {
   min-height: 100vh;
@@ -1491,6 +1570,28 @@ function acceptRecommend() {
 .asr-state.on {
   color: #73f8d0;
   text-shadow: 0 0 8px rgba(0, 239, 188, 0.4);
+}
+/* 麦克风手动开关（2026-11-13） */
+.asr-mic-btn {
+  flex: none;
+  margin-left: 8px;
+  padding: 2px 9px;
+  border: 1px solid rgba(0, 242, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(0, 31, 48, 0.8);
+  color: #7dd3fc;
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: 0.18s;
+}
+.asr-mic-btn:hover {
+  border-color: rgba(0, 242, 255, 0.7);
+  box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
+}
+.asr-mic-btn.on {
+  border-color: rgba(255, 157, 46, 0.5);
+  color: #ffb02e;
 }
 /* 识别日志：**恢复自适应高度**（曾改成固定 180px，空态也占 180px——用户
    "框框变大"即此）。空态只有一行提示，条目最多长到 92px（约 4 条，最新在

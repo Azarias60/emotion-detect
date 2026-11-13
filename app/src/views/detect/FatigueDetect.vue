@@ -5,6 +5,7 @@ import DetectionShell from '@/components/DetectionShell.vue'
 import DetectionProcess from '@/components/DetectionProcess.vue'
 import { useDetectionGuard } from '@/composables/useDetectionGuard'
 import { useFatigueDetection } from '@/features/detection/useFatigueDetection'
+import { useReportSave } from '@/features/detection/useReportSave'
 import { fatigueMetrics, scalePercent } from '@/utils/detectionMetrics'
 
 const {
@@ -33,6 +34,22 @@ function startDetection() {
 function requestStopDetection() {
   if (recording.value && window.confirm('提前结束可能导致结果不准确。确定结束并分析当前数据吗？'))
     stop()
+}
+
+// ── 保存报告（2026-11-13 新增）── 存档后管理后台可见历史与趋势
+const reportSave = useReportSave()
+const { saving: reportSaving, saved: reportSaved } = reportSave
+async function saveFatigueReport() {
+  const r = result.value
+  if (!r) return
+  const probability = Math.round((r.physiological?.fatigue_probability || 0) * 100)
+  await reportSave.save({
+    type: 'fatigue',
+    title: `疲劳检测报告 · ${new Date().toLocaleString('zh-CN', { hour12: false })}`,
+    summary: `${r.advice?.level || '状态良好'}（疲劳概率 ${probability}%）`,
+    result: r,
+    rawReport: `${r.advice?.level || ''}：${r.advice?.text || ''}`,
+  })
 }
 </script>
 
@@ -80,6 +97,14 @@ function requestStopDetection() {
               @click="requestStopDetection"
             >
               提前结束并分析
+            </button>
+            <button
+              v-if="result"
+              class="tech-button gold"
+              :disabled="reportSaving || reportSaved"
+              @click="saveFatigueReport"
+            >
+              {{ reportSaving ? '保存中…' : reportSaved ? '✓ 已保存' : '保存报告' }}
             </button>
           </div>
           <p v-if="errorMessage" class="error-text">{{ errorMessage }}</p>

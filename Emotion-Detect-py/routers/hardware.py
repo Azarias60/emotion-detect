@@ -1,13 +1,20 @@
 """硬件 HTTP 适配；设备操作和 MJPEG 编码交给硬件服务。"""
-from fastapi import APIRouter, Body, Depends, Query, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from core.contracts import CaptureRequest, TransportRequest
 from core.responses import success
 from services.dependencies import get_hardware_service
-from services.hardware_service import HardwareService
+from services.hardware_service import CaptureAlreadyRunningError, DeviceNotConnectedError, HardwareService
 
 router = APIRouter(tags=["单片机与硬件交互"])
+
+
+@router.get("/detection/status")
+async def detection_status():
+    """全局检测状态：前端状态条显示当前哪个模块在分析（2026-11-11 互不打扰）。"""
+    from services.analysis_pipeline import detection_status as _status
+    return success(_status(), "success")
 
 
 @router.get("/video_feed")
@@ -27,7 +34,11 @@ async def api_start_hardware(
     settings = {"record_duration": record_duration, "capture_video": capture_video}
     if payload is not None:
         settings.update(payload.model_dump(exclude_unset=True))
-    service.start(settings["record_duration"], settings["capture_video"])
+    try:
+        service.start(settings["record_duration"], settings["capture_video"])
+    except (DeviceNotConnectedError, CaptureAlreadyRunningError) as error:
+        # 设备未连接/采集已在进行：立刻让人话拒绝，别让用户白等一个录制窗口
+        raise HTTPException(status_code=409, detail=str(error)) from error
     return success(msg=f"单片机多模态采集已启动，计划录制 {settings['record_duration']} 秒")
 
 

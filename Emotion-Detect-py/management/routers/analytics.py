@@ -8,6 +8,16 @@ from ..dependencies import current_user
 from ..responses import success
 from ..schemas import AnalysisRequest
 
+
+def _next_day_midnight(day: str) -> str:
+    """结束日期边界：次日 00:00（左开右闭区间），不受 created_at 微秒影响。"""
+    from datetime import date, timedelta
+    try:
+        d = date.fromisoformat(day) + timedelta(days=1)
+    except ValueError:
+        return f"{day}T23:59:59+00:00"
+    return f"{d.isoformat()}T00:00:00+00:00"
+
 router = APIRouter(prefix="/report", tags=["历史分析"])
 TYPE_LABELS = {"health": "健康问诊", "tongue": "舌象检测", "fatigue": "疲劳检测", "emotion": "情绪识别", "companion": "数字人对话", "comprehensive": "综合分析"}
 
@@ -16,9 +26,9 @@ TYPE_LABELS = {"health": "健康问诊", "tongue": "舌象检测", "fatigue": "�
 def analyze_reports(request: AnalysisRequest, user=Depends(current_user)):
     clauses, params = ["create_user_id=?", "report_type<>'comprehensive'"], [user["id"]]
     if request.startDate:
-        clauses.append("created_at>=?"); params.append(f"{request.startDate.isoformat()}T00:00:00")
+        clauses.append("created_at>=?"); params.append(f"{request.startDate.isoformat()}T00:00:00+00:00")
     if request.endDate:
-        clauses.append("created_at<=?"); params.append(f"{request.endDate.isoformat()}T23:59:59+99:99")
+        clauses.append("created_at<?"); params.append(_next_day_midnight(request.endDate.isoformat()))
     with database() as connection:
         rows = connection.execute(f"SELECT * FROM reports WHERE {' AND '.join(clauses)} ORDER BY created_at ASC", params).fetchall()
         if not rows:

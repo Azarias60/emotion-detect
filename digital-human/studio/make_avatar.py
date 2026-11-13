@@ -2,14 +2,26 @@
 """照片 → 数字人一键产线（docs/photo-to-digital-human-pipeline.md 的落地）。
 
 输入一张用户照片 + 名字，串起既有产线脚本产出可上页的数字人：
-  体检照片 → SCAIL 5 段×2seed（现有动作库 + 用户照片做参考）→ 选 seed →
-  几何稳定化 → LTX 过渡 10 对 → QA（质量门/身份/过渡）→ 组装 avatar → 注册配对。
+  体检照片 → SCAIL 动作段（每段一次）→ 回收 → LTX 过渡 → QA 门限 → 组装 avatar → 注册配对。
 
 关键设计：
 - **动作库复用**：SCAIL 姿态驱动只取驱动视频的动作，形象全由照片决定——
-  新人物与鬼子共用 E:/Comfyui 的一套动作模板，无需重录；
-- 各阶段 subprocess 调既有脚本（regen_scail/stabilize_segments/transition_queue/
-  qa_segments/audit_identity/audit_transitions/build_avatar），本脚本只做编排；
+  新人物与 zzf 共用 assets/materials 的一套动作模板，无需重录；
+- **2026-11-09 起只做调色，绝不改画面内容**（用户拍板：“可以进行调色，但绝对
+  不要对画面内容进行裁切和修改”）：
+  · 允许：unify_color——整帧 Reinhard LAB + 脸部常量偏移，只改颜色不改构图，
+    帧数/动作/姿态一律不动（治 SCAIL 与 LTX 渲染域不同造成的接缝明暗台阶）；
+  · 禁止：插帧、光流修瞬移、剪尾段定格、稳腿、背景板替换、几何校正、肤色
+    以外的任何像素操作。
+  SCAIL 直接按 25fps 出片（配方 force_rate/fps=25），与引擎播放帧率一致，
+  组装时既不插帧也不补帧。产物有问题靠 QA 门限**重新生成**：
+  基础段门（嘴没闭住/背景晃动>0.6/定格≥10帧/脸宽极差>12%）不过就换 seed
+  重掷并连带重跑受影响的过渡；过渡门（尖峰>10/黑帧/亮度崩塌/定格）同理。
+- **调色顺序有讲究**：基础段必须先调成最终颜色，再生成过渡——过渡的端点帧
+  取自基础段末帧，基础段颜色没定，接缝就会出现明暗台阶。所以调色在阶段 2
+  （基础段就位后）和阶段 3（过渡收完后）各跑一次。
+- 各阶段 subprocess 调既有脚本（regen_scail/transition_queue/qa_segments/
+  audit_identity/build_avatar），本脚本只做编排；
 - 进度落盘 progress.json（后端只读文件，进程死了状态仍可查）；
 - QA 用新人物**基础段**做参考脸（不能用 data/avatars/<name>/full_imgs——
   那是组装产物，历史教训：混入过渡段会污染均值脸）。
@@ -57,11 +69,17 @@ class Progress:
         self.path.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
-def run(cmd, **kw):
-    """跑子进程，失败抛异常（message 带尾部输出）。"""
+def run(cmd, check=True, **kw):
+    """跑子进程，默认失败抛异常（message 带尾部输出）。
+
+    check=False 用于"失败也是有效结论"的检查类命令：qa_segments 在有段不合格
+    时以非零码退出，但报告 JSON 照常落盘——门限逻辑读 JSON 判定，退出码绝不能
+    变成产线杀手（2026-11-10 e2e 实锤：终检 2 段嘴闭差 0.01 直接把整条产线
+    砸成"制作失败"，此前 14 条过渡全白跑）。
+    """
     r = subprocess.run([PY, *cmd], cwd=str(ROOT), capture_output=True, text=True,
                        encoding="utf-8", errors="replace", **kw)
-    if r.returncode != 0:
+    if check and r.returncode != 0:
         tail = ((r.stdout or "") + (r.stderr or ""))[-800:]
         raise RuntimeError(f"命令失败({' '.join(cmd[:3])}...): {tail}")
     return r.stdout
@@ -104,11 +122,39 @@ DRIVER_MAP = {"idle1": "idle1.mp4", "idle2": "idle2.mp4", "idle3": "idle3.mp4",
               "comfort": "comfort.mp4", "encourage": "encourage.mp4"}
 # 动作模板（2026-11-07 扩到 7 段，对齐 zzf 本体动作库规模）；过渡对挂点见 TRANS_PAIRS
 TEMPLATE_SEGS = ("idle1", "idle2", "idle3", "greet", "talk", "comfort", "encourage")
-TRANS_PAIRS = ["idle2 to idle3", "idle3 to idle1", "idle1 to greet", "greet to talk",
-               "idle1 to talk", "talk to idle1", "talk to greet", "idle1 to idle2",
-               "greet to idle1", "talk to talk",
-               "idle1 to comfort", "comfort to idle1",
-               "idle1 to encourage", "encourage to idle1"]
+# 过渡对全量集（2026-11-13 补齐）：状态机可达的每一对都生成精确过渡，
+# 不再有"泛化借帧（起点姿势不符 → 人物瞬移）"和"硬切（姿势突变）"。
+# 分四组：
+#   ① 待机环      idle2→idle3→idle1→idle2 + idle2⇄idle1 + idle3→idle2 + idle1→idle3
+#   ② 待机→说话   idle1/idle2/idle3 → talk（70% 概率的说话开场从 idle2 出发）
+#   ③ 待机→动作   idle1/idle2/idle3 → greet/comfort/encourage
+#   ④ 说话↔动作   talk→greet/comfort/encourage、comfort/encourage→talk、
+#                 talk→talk（talk2 复用 talk 的出口，段表里没有独立 talk2 段）
+# 历史包袱：11-10 首版只有 14 条（环 + idle1 辐条），用户实测缺口的 4 条
+# （idle3→idle2/idle2→idle1/idle2→talk/idle2→greet）和说话中情绪动作的
+# 4 条（talk→comfort/encourage、comfort/encourage→talk）都是硬切或借帧。
+TRANS_PAIRS = [
+    # ① 待机环 + 星形拓扑（idle2 是中转站）
+    "idle2 to idle3", "idle3 to idle1", "idle1 to idle2",
+    "idle2 to idle1", "idle3 to idle2", "idle1 to idle3",
+    # ② 待机 → 说话
+    "idle1 to talk", "idle2 to talk", "idle3 to talk",
+    # ③ 待机 → 动作
+    "idle1 to greet", "idle2 to greet", "idle3 to greet",
+    "idle1 to comfort", "idle2 to comfort", "idle3 to comfort",
+    "idle1 to encourage", "idle2 to encourage", "idle3 to encourage",
+    # ④ 说话 ↔ 动作 / 说话循环
+    "greet to talk", "comfort to talk", "encourage to talk",
+    "talk to greet", "talk to comfort", "talk to encourage",
+    "talk to idle1", "talk to talk",
+    # ⑤ 主待机段自循环（2026-11-13 用户要求"经常不停播 idle2，每次只有
+    #    15% 概率播 idle1/idle3"）：idle2 播完 93 帧后经这条 1 秒自过渡
+    #    回到自身起点，姿势差被摊开演完，而不是每 3.7 秒硬跳一次。
+    "idle2 to idle2",
+    # 动作 → 待机（ greet/comfort/encourage 共用 idle1 出口，其余 idle 由
+    # 状态机同源泛化：出口姿势与目标 idle 无关，借帧安全）
+    "greet to idle1", "comfort to idle1", "encourage to idle1",
+]
 
 
 def build_consistent_driver_dir(work: Path) -> Path:
@@ -117,6 +163,8 @@ def build_consistent_driver_dir(work: Path) -> Path:
     import shutil
     for tgt, src in DRIVER_MAP.items():
         src_path = Path(src) if Path(src).is_absolute() else DRIVER_SRC / src
+        # 2026-11-10 用户拍板：素材一律原样进入工作流，不做任何预处理
+        # （此前的横向稳定化已按此要求撤线；质量靠阶段 2.5/4 的门限重掷保证）
         shutil.copy2(src_path, d / f"{tgt}.mp4")
     return d
 
@@ -182,13 +230,43 @@ def stage_scail(name: str, photo: Path, prog: Progress, dry: bool, work: Path,
     if appearance:
         (work / "appearance.txt").write_text(appearance, encoding="utf-8")
         prog.write(1, "AI 已读照片并写好人物外观描述")
+    # 2026-11-09 用户拍板：每个只跑一次，有问题就重新跑（不再跑双 seed 选优，
+    # 也不再对产物做任何后处理——插帧/光流/剪尾/稳腿/背景板全部撤掉）。
+    # 帧率显式传 25（引擎原生），并在提交后校验落盘的工作流 JSON——2026-11-09
+    # 踩坑：默认配方是 scail_stability.json 而非 scail_guizi.json，改了后者
+    # 完全没生效，工作流静默按 20fps 提交。
+    wf_dir = ROOT / "runs" / "make_avatar" / name / "workflows"
     run(["studio/regen_scail.py", "submit",
          "--segments", ",".join(segs),
-         "--seeds", "1,2", "--run", run_name, "--ref-image", str(ref_path),
+         "--seeds", "1", "--run", run_name, "--ref-image", str(ref_path),
          "--driver-dir", str(driver_dir),
+         "--force-rate", "25", "--out-fps", "25",
          "--appearance-file", str(work / "appearance.txt") if appearance else "",
-         "--workflow-dir", str(ROOT / "runs" / "make_avatar" / name / "workflows")])
+         "--workflow-dir", str(wf_dir)])
+    _verify_scail_fps(wf_dir, segs, expect=25)
     return run_name, ref_path, driver_dir
+
+
+def _verify_scail_fps(wf_dir: Path, segs, expect: int = 25, seed: int = 1) -> None:
+    """提交后校验：每段工作流的 node33 force_rate / node177 fps 必须等于 expect。
+
+    防"改了配方却没生效"这类静默错误——帧率错了整套片子要么补帧顿挫、
+    要么和引擎播放帧率不一致，必须提交时就知道，不能等出片才发现。
+    seed 参数覆盖重掷提交（自愈/质量门重掷的 seed 是 110/120…，文件名随之变）。
+    """
+    bad = []
+    for seg in segs:
+        p = wf_dir / f"scail_{seg}_s{seed}.json"
+        if not p.is_file():
+            bad.append(f"{seg}(无工作流文件)")
+            continue
+        g = json.loads(p.read_text(encoding="utf-8"))
+        fr = g.get("33", {}).get("inputs", {}).get("force_rate")
+        fp = g.get("177", {}).get("inputs", {}).get("fps")
+        if fr != expect or fp != expect:
+            bad.append(f"{seg}(force_rate={fr}, fps={fp})")
+    if bad:
+        raise RuntimeError(f"SCAIL 提交帧率校验失败，应为 {expect}fps：{bad}")
 
 
 def _run_maps(name: str):
@@ -223,31 +301,48 @@ def _candidates(name: str, seg: str):
     return out
 
 
-def stage_select(name: str, prog: Progress, segs=TEMPLATE_SEGS):
+def stage_select(name: str, prog: Progress, segs=TEMPLATE_SEGS, force_new: set | None = None):
     """收集各 seed 产出（s1/s2 及自愈轮补的 s101/s201…全量候选），按脸宽极差+
-    漏检选优，组 staging 目录。只使用任务 history 报出的真实产出。"""
+    漏检选优，组 staging 目录。只使用任务 history 报出的真实产出。
+
+    force_new：这些段**强制用最新候选**（重掷出来的那一版），不参与比选。
+    2026-11-09 用户点出的坑：按脸宽极差选优时，重掷段可能极差分稍高却被
+    旧段比下去——旧段是已知不合格（背景晃/张嘴）的，选回去等于重掷白做，
+    门限再检还是同一段。重掷的目的就是替换，所以必须强制采用。
+    """
     stage_dir = ROOT / "runs" / "make_avatar" / name / "segments"
     stage_dir.mkdir(parents=True, exist_ok=True)
+    force_new = force_new or set()
     from studio.regen_scail import face_widths
     chosen: dict[str, Path] = {}
     picked = []
     for seg in segs:
-        best = None
-        for _seed, src in _candidates(name, seg):
+        cands = _candidates(name, seg)
+        if seg in force_new and cands:
+            # 取 seed 最大的那份（重掷 seed 110/120 > 首轮 1）
+            seed, src = max(cands, key=lambda c: c[0])
             ws = face_widths(src)
             v = ws[~np.isnan(ws)]
-            if len(v) < 10:
-                continue
-            swing = 100 * (v.max() - v.min()) / v.mean()
-            miss = int(np.isnan(ws).sum())
-            score = swing + miss * 5
-            if best is None or score < best[0]:
-                best = (score, src, swing, miss)
-        if best is None:
-            raise RuntimeError(f"{seg} 所有 seed（含自愈重掷）都没有合格产出")
+            swing = 100 * (v.max() - v.min()) / v.mean() if len(v) >= 2 else float("nan")
+            best = (0.0, src, swing, int(np.isnan(ws).sum()))
+            picked.append(f"{seg}(重掷seed{seed}·极差{swing:.1f}%)")
+        else:
+            best = None
+            for _seed, src in cands:
+                ws = face_widths(src)
+                v = ws[~np.isnan(ws)]
+                if len(v) < 10:
+                    continue
+                swing = 100 * (v.max() - v.min()) / v.mean()
+                miss = int(np.isnan(ws).sum())
+                score = swing + miss * 5
+                if best is None or score < best[0]:
+                    best = (score, src, swing, miss)
+            if best is None:
+                raise RuntimeError(f"{seg} 所有 seed（含自愈重掷）都没有合格产出")
+            picked.append(f"{seg}(极差{best[2]:.1f}%)")
         shutil.copy2(best[1], stage_dir / f"{seg}.mp4")
         chosen[seg] = best[1]
-        picked.append(f"{seg}(极差{best[2]:.1f}%)")
     # talk 之外的备用 talk 产出 → talk2；一个都没有则复用已选 talk
     if "talk" in segs:
         alts = [p for _seed, p in _candidates(name, "talk") if p != chosen.get("talk")]
@@ -275,6 +370,126 @@ def _edge_jitter(video: Path) -> float:
         prev = g
     cap.release()
     return float(np.median(ds)) if ds else 0.0
+
+
+def _freeze_run(video: Path, th: float = 0.4) -> int:
+    """人物区最长连续低运动帧数（定格检测）。
+
+    2026-11-09：尾段沉降不再裁剪，改成“检测到就重掷”——所以这个度量从
+    诊断变成门限。判据与已修复的 greet→idle1 案例一致：人物区（画面中部）
+    相邻帧 MAD < 0.4 且连续 ≥10 帧，即认为该段有可见停顿。
+    """
+    cap = cv2.VideoCapture(str(video))
+    prev, best, cur = None, 0, 0
+    while True:
+        ok, f = cap.read()
+        if not ok:
+            break
+        g = cv2.cvtColor(f[150:1200, 140:560], cv2.COLOR_BGR2GRAY).astype(np.float32)
+        if prev is not None:
+            m = float(np.abs(g - prev).mean())
+            if m < th:
+                cur += 1
+                best = max(best, cur)
+            else:
+                cur = 0
+        prev = g
+    cap.release()
+    return best
+
+
+# 基础段门限（2026-11-09 用户拍板“模型出什么样就用什么样，有问题就重新跑”）
+BG_SHAKE_GATE = 0.6      # 边缘背景带帧差中位数上限（旧库 1.1~3.3，好素材 0.10~0.27）
+FREEZE_GATE = 10         # 人物区最长连续低运动帧数上限
+SWING_GATE = 12.0        # 脸宽极差上限（%）
+
+
+def gate_base_segments(stage_dir: Path, qa_json: Path | None = None) -> dict:
+    """基础段体检：返回 {段名: [不合格原因]}。
+
+    三项来源：qa_segments 的嘴/脸部门（读它落盘的 JSON）+ 背景晃动 + 定格。
+    过渡段的门在 gate_transitions / transition_queue 的黑帧门里。
+    """
+    bad: dict[str, list[str]] = {}
+    qa = {}
+    if qa_json and qa_json.is_file():
+        try:
+            qa = json.loads(qa_json.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            qa = {}
+    from studio.regen_scail import face_widths
+    for p in sorted(stage_dir.glob("*.mp4")):
+        if " to " in p.stem:
+            continue
+        reasons = []
+        gates = (qa.get(p.stem) or {}).get("gates") or {}
+        for key, ok in gates.items():
+            if not ok:
+                reasons.append({"face_hit": "人脸检出不足", "mouth_silent": "嘴没闭住",
+                                "mouth_closed": "检测到张嘴"}.get(key, key))
+        shake = _edge_jitter(p)
+        if shake > BG_SHAKE_GATE:
+            reasons.append(f"背景晃动 {shake:.2f}")
+        freeze = _freeze_run(p)
+        if freeze >= FREEZE_GATE:
+            reasons.append(f"定格 {freeze} 帧")
+        ws = face_widths(p)
+        v = ws[~np.isnan(ws)]
+        if len(v) >= 10 and 100 * (v.max() - v.min()) / v.mean() > SWING_GATE:
+            reasons.append(f"脸宽极差 {100 * (v.max() - v.min()) / v.mean():.1f}%")
+        if reasons:
+            bad[p.stem] = reasons
+    return bad
+
+
+def base_quality_loop(name: str, stage_dir: Path, prog: Progress, segs,
+                      ref_path: Path, driver_dir: Path, qa_out: Path,
+                      max_rounds: int = 2) -> dict:
+    """基础段质量门：**在过渡生成之前**跑（2026-11-09 用户要求）。
+
+    动机：11-09 实跑 rawv1 时，idle1 背景晃动 0.94 不合格，但门限放在过渡
+    之后——14 条过渡全做完才报出来，重掷 idle1 后又要重跑 4 条受影响过渡，
+    白烧约 40 分钟。现在顺序反过来：动作段不合格就地重掷，绝不让坏段进过渡。
+
+    流程：qa_segments（只看基础段）→ gate_base_segments → 有不合格就换 seed
+    重掷 → 重新选优 + 调色 → 再检，最多 max_rounds 轮。
+    """
+    bad: dict[str, list[str]] = {}
+    for rnd in range(1, max_rounds + 1):
+        prog.write(4, f"正在检查动作段质量（第 {rnd}/{max_rounds} 轮）…")
+        # check=False：qa 有不合格段时以非零码退出，但报告照常落盘——
+        # 这正是触发重掷的正常路径，绝不能在这里抛异常砸产线
+        run(["studio/qa_segments.py", "--segments", str(stage_dir),
+             "--out", str(qa_out / "qa_report.json")], check=False)
+        bad = gate_base_segments(stage_dir, qa_out / "qa_report.json")
+        if not bad:
+            prog.write(4, f"动作段质量全部通过（{len(segs)} 段）——可以开始生成过渡")
+            return {}
+        if rnd == max_rounds:
+            break
+        bad_segs = sorted(bad)
+        new_seed = 100 + rnd * 10
+        prog.write(4, f"动作段不合格（{bad}），换 seed {new_seed} 就地重掷 {bad_segs}"
+                      "——重掷完才生成过渡，不浪费过渡时间")
+        sub_run = f"{name}_g_h{rnd}s{new_seed}"
+        sub_wf = ROOT / "runs" / "make_avatar" / name / "workflows"
+        run(["studio/regen_scail.py", "submit",
+             "--segments", ",".join(bad_segs), "--seeds", str(new_seed),
+             "--run", sub_run, "--ref-image", str(ref_path),
+             "--driver-dir", str(driver_dir),
+             # 帧率显式传 + 提交后校验：重掷段与首轮段必须同帧率，否则组装后
+             # 动作段之间速度不一致（2026-11-12 补——此前重掷只靠配方默认值，
+             # 配方被误改时静默按 20fps 出片，到终检才发现）
+             "--force-rate", "25", "--out-fps", "25",
+             "--workflow-dir", str(sub_wf)])
+        _verify_scail_fps(sub_wf, bad_segs, expect=25, seed=new_seed)
+        run(["studio/regen_scail.py", "collect", "--run", sub_run, "--timeout", "21600"])
+        # 重掷段强制采用新产出（不参与比选）——旧段是已知不合格的，选回去
+        # 重掷就白做了；门限下一轮会重新检测这一版
+        stage_select(name, prog, segs, force_new=set(bad_segs))
+        run(["studio/unify_color.py", "--segments", str(stage_dir), "--apply",
+                 "--scope", "base"])
+    return bad
 
 
 def _segment_stability(stage_dir: Path):
@@ -372,6 +587,42 @@ def scail_heal(name: str, run_name: str, ref_path: Path, driver_dir: Path,
             run(["studio/regen_scail.py", "collect", "--run", sub_run,
                  "--timeout", "21600"])
 
+def _post_backend(path: str, backend_url: str, timeout: float = 30.0) -> dict | None:
+    """调后端的引擎管理端点；失败返回 None（让位失败不阻断产线——最坏是
+    显存争抢，比直接崩掉强）。"""
+    import urllib.request
+
+    url = backend_url.rstrip("/") + path
+    try:
+        req = urllib.request.Request(url, data=b"", method="POST")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            import json as _json
+            return _json.loads(resp.read().decode("utf-8"))
+    except Exception as error:
+        print(f"[引擎让位] {path} 调用失败（不影响产线）：{error}", flush=True)
+        return None
+
+
+def _engine_yield(prog: "Progress", backend_url: str) -> bool:
+    """停数字人引擎让出显存；返回是否真的停了（决定 finally 要不要恢复）。"""
+    data = _post_backend("/dh/engine/stop", backend_url)
+    stopped = bool(data and data.get("stopped"))
+    if stopped:
+        prog.write(1, "数字人引擎已让位（显存全给生成），制作完成后自动恢复")
+        print("[引擎让位] 引擎已停止，显存释放给 SCAIL/LTX", flush=True)
+    else:
+        print("[引擎让位] 引擎未在运行，无需让位", flush=True)
+    return stopped
+
+
+def _engine_restore(prog: "Progress", backend_url: str) -> None:
+    """恢复数字人引擎（finally 调用，失败只提示不抛）。"""
+    data = _post_backend("/dh/engine/start", backend_url)
+    if data and data.get("started"):
+        prog.write(TOTAL, "制作完成，数字人引擎恢复中（约 1 分钟后可对话）", ok=True)
+        print("[引擎让位] 引擎已恢复（加载约 1 分钟）", flush=True)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--photo", required=True)
@@ -383,6 +634,9 @@ def main():
                     help="跳过生成阶段，从选优开始跑（含肤色/插帧/QA/上架）——QA 不过换种子重掷后用")
     ap.add_argument("--skip-transitions", action="store_true",
                     help="跳过过渡生成（配合 --from-select：过渡已产出并过检时用）")
+    ap.add_argument("--backend-url", default="http://127.0.0.1:8081",
+                    help="后端地址（引擎让位/恢复用；制作期间停数字人引擎把显存"
+                         "全给 ComfyUI，完成后自动拉起）")
     ap.add_argument("--segments", default=",".join(TEMPLATE_SEGS),
                     help="本次生成的动作段清单（默认=7 段模板；测试可只传 greet）")
     ap.add_argument("--resume", action="store_true",
@@ -400,6 +654,10 @@ def main():
         print(f"[{STAGES[min(i, TOTAL-1)]}] {msg}", flush=True)
         if args.dry_run:
             time.sleep(dry_sleep)
+
+    # finally 里要恢复引擎——必须在 try 之前定义，否则 dry-run 提前 return 时
+    # finally 引用未赋值变量直接 NameError（2026-11-12）
+    engine_yielded = False
 
     try:
         # 0 体检
@@ -428,6 +686,22 @@ def main():
             prog.write(TOTAL, "dry-run 完成", ok=True)
             return
 
+        # 过渡对自适应：只生成两端都在本次段清单里的对（单段模式自然为空）
+        pairs = [] if args.skip_transitions else [
+            p for p in TRANS_PAIRS
+            if all(x in segs for x in p.split(" to "))]
+        pairs_planned = bool(pairs)
+        qa_out = ROOT / "runs" / "make_avatar" / name
+
+        # GPU 让位（2026-11-12 用户要求"全力跑 AI 生成"）：数字人引擎常驻
+        # 7~9G 显存，与 SCAIL/LTX 争 16G 会互相拖死——引擎在线时实测
+        # ComfyUI OOM、CosyVoice3 合成慢到 75s 超时。制作全程停引擎，finally
+        # 里恢复；只停引擎进程，后端不重启，检测/首页全程不受影响。
+        # skip_transitions 且 skip_gen（纯续跑 QA/组装，不碰 GPU）时不必停。
+        gpu_work = (not skip_gen and not args.from_select) or bool(pairs)
+        if gpu_work:
+            engine_yielded = _engine_yield(prog, args.backend_url)
+
         # 1 SCAIL 生成 + ⑦ 缺段自愈（collect 软失败不再判死产线）
         run_name = args.reuse_run or f"{name}_g"
         if not skip_gen and not args.from_select:
@@ -454,67 +728,51 @@ def main():
         else:
             tick(1, "resume：六段基础段已齐，跳过 SCAIL 生成与回收", dry_sleep=0)
 
-        # 2 选优 + 稳定化
+        # 2 选优（2026-11-09 起无后处理：模型出什么样就用什么样）
         if skip_gen:
             stage_dir = work / "segments"
-            tick(2, "resume：跳过挑选与稳定化，直接续跑过渡", dry_sleep=0)
+            tick(2, "resume：跳过挑选，直接续跑过渡", dry_sleep=0)
         else:
-            tick(2, "正在挑选最佳动作段并做稳定性体检…", dry_sleep=0)
+            tick(2, "正在回收动作段产物…", dry_sleep=0)
             msg, stage_dir = stage_select(name, prog, segs)
-
-            # 几何校正只在确有漂移时才做：最新 SCAIL 产物脸宽中位 101~103px、
-            # 段间差 <2%，内部极差 3~8%——对好素材再做 warp 反而会糊/抖。
+            # 只量不改：把稳定性指标写进进度，供人工判断；不做任何校正/插帧/
+            # 背景板/稳腿——产品由生成质量决定，不合格就重掷（见阶段 4 门限）。
             stats = _segment_stability(stage_dir)
             swings = [s[0] for s in stats.values()]
-            meds = [s[1] for s in stats.values()]
-            spread = (100 * (max(meds) - min(meds)) / (sum(meds) / len(meds))
-                      if meds else 0.0)
-            if (swings and max(swings) > 8.0) or spread > 5.0:
-                run(["studio/stabilize_segments.py", "--segments", str(stage_dir),
-                     "--apply"])
-                prog.write(2, f"检测到漂移（最大极差 {max(swings):.1f}%、段间尺度差 "
-                              f"{spread:.1f}%），已做几何校正")
-            else:
-                prog.write(2, f"动作段几何已稳定（最大极差 {max(swings):.1f}%、段间 "
-                              f"尺度差 {spread:.1f}%），跳过校正")
-
-            # 肤色统一：SCAIL 与 LTX 渲染域不同（脸部 BGR 差最多 10 色阶）
-            run(["studio/unify_color.py", "--segments", str(stage_dir), "--apply"])
-
-            # 背景锁定必跑（2026-11-08 用户实看背景仍晃）：边缘带指标（左右
-            # 55px）测不到人物周边拱门立柱区的晃动，门槛跳过会漏。板替换对
-            # 全背景生效（人物掩膜外整块换成时间中位背景板），有动作段后跑。
             jitters = {p.stem: _edge_jitter(p) for p in sorted(stage_dir.glob("*.mp4"))
                        if " to " not in p.stem}
-            worst = max(jitters.values()) if jitters else 0.0
-            run(["studio/stabilize_background.py", "--segments", str(stage_dir),
-                 "--only-action", "--passes", "2", "--th", "22", "--apply"])
-            prog.write(2, f"背景已锁定背景板（锁定前边缘抖动最大 {worst:.2f}）")
-
-            # 20fps -> 25fps 真插帧（build_avatar 的 fps=25 是复制帧，会顿）
-            try:
-                run(["studio/interpolate_rife.py", "--segments", str(stage_dir),
-                     "--apply"])
-                prog.write(2, "RIFE 插帧完成（动作段 25fps，非复制帧）")
-            except Exception as exc:
-                prog.write(2, f"RIFE 插帧失败，保留 20fps（组装时补帧）：{exc}")
-
-            # 腿部抖动修复（2026-11-08）：驱动素材头到膝取景（脚不入镜），
-            # SCAIL 逐帧重绘下半身 → 轮廓/脚高频颤动。运动门控时间低通只修
-            # "原地颤动"像素（hf≫slow），挥手/手势不受影响；必须在过渡生成
-            # 之前跑——过渡的端点取自基础段末帧，端点必须已是修后版本。
-            run(["studio/stabilize_legs.py", "--segments", str(stage_dir),
-                 "--only", "base", "--apply"])
+            freezes = {p.stem: _freeze_run(p) for p in sorted(stage_dir.glob("*.mp4"))
+                       if " to " not in p.stem}
+            if not stats:
+                raise RuntimeError("没有回收到任何动作段产物（SCAIL 全部失败），请重试")
+            prog.write(2, f"动作段就位（{len(stats)} 段）：脸宽极差最大 "
+                          f"{max(swings):.1f}%、背景晃动最大 {max(jitters.values()):.2f}、"
+                          f"最长定格 {max(freezes.values())} 帧——全部为原始产物，未做任何处理")
+            # 调色（2026-11-09 用户批准的唯一后处理：只改颜色，不裁不改画面内容）。
+            # 必须在这里跑完：过渡的端点帧取自基础段末帧，基础段的颜色必须先定，
+            # 否则过渡端点与基础段对不上，接缝出现明暗台阶（=另一种闪切）。
+            # 纯调色：整帧 Reinhard LAB + 脸部常量 offset，帧数/构图/动作一律不动。
+            run(["studio/unify_color.py", "--segments", str(stage_dir), "--apply",
+                 "--scope", "base"])
+            prog.write(2, "调色完成（基础段颜色已统一；未做任何裁切/插帧/修正）")
             tick(2, msg)
+
+        # 2.5 动作段质量门（2026-11-09 用户要求：先查动作段，再产过渡）
+        # 放在这里是刻意的——11-09 rawv1 实跑教训：门限原来放在过渡之后，
+        # idle1 不合格时 14 条过渡已经全做完，重掷后还要重跑 4 条受影响过渡，
+        # 白烧约 40 分钟。现在坏段就地重掷，通过才放行过渡。
+        base_bad: dict[str, list[str]] = {}
+        if not skip_gen and pairs_planned:
+            base_bad = base_quality_loop(name, stage_dir, prog, segs,
+                                         ref_path, driver_dir, qa_out)
+            if base_bad:
+                prog.write(3, f"动作段 2 轮重掷后仍不合格：{base_bad}"
+                              "（带残差继续生成过渡，建议完成后删除重做或换照片）")
 
         # 3 过渡（⑦ 自愈循环 ≤3 轮：seed 801/802/803，缺什么/超标什么重掷什么；
         #    collect 软失败（missing.json）与 gate 尖峰超标都汇入 remaining。
         #    ② 配方换中性版：默认 guizi 配方的 pos 写死了男像/夜景，会把鬼子
         #    身份从过渡段拉回来）
-        # 过渡对自适应：只生成两端都在本次段清单里的对（单段模式自然为空）
-        pairs = [] if args.skip_transitions else [
-            p for p in TRANS_PAIRS
-            if all(x in segs for x in p.split(" to "))]
         if not pairs:
             prog.write(3, "单段模式：跳过过渡")
             tick(3, "单段模式：无过渡对，跳过过渡生成", dry_sleep=0)
@@ -535,29 +793,14 @@ def main():
                  "--recipe", "ltx_transition_neutral.json"])
             run(["studio/transition_queue.py", "collect", "--run", run_id,
                  "--timeout", "10800", "--seg-dir", str(stage_dir)])
-            # LTX 对大姿势差（垂手↔挥手）会把渐变做成一帧瞬移——光流 morph 展开
-            run(["studio/morph_fix.py", "--segments", str(stage_dir), "--apply"])
-            # 尾段收尾沉降裁剪（2026-11-05 全帧核验确认 greet→idle1 有 21 帧
-            # 真冻结）：只剪末尾低运动沉降，保留中间运动帧；端点差 >6 不剪；
-            # <=60 帧视为已裁，幂等。中间帧仍不做任何剪帧/定格修剪。
-            run(["studio/trim_transition_tail.py", "--segments", str(stage_dir), "--apply"])
-            # ⑨ 过渡尖峰/突发修复（2026-11-08 e2egreet01 实测教训）：LTX 对大
-            # 姿势差会出孤立尖峰帧（躯体扭曲 1~2 帧）和尾部抖动突发（帧差 9~21
-            # 连续 5~7 帧），换 seed 重掷 3 轮均无法避免（结构性）。孤立尖峰用
-            # 前后帧混合替换，突发/末帧跳变贪心摘除源帧——必须在终检门之前跑，
-            # 否则门限降级上架会把坏过渡带进成品。
-            run(["studio/fix_spike_frames.py", "--segments", str(stage_dir), "--apply"])
-            # 腿部稳定化（过渡段）：LTX 过渡的腿部运动多为姿势渐变（slow 主导）
-            # 门控自然低触发，但 talk to talk 这类仍有幻觉颤动；在终检门之前跑，
-            # 保证门测的是成品。
-            run(["studio/stabilize_legs.py", "--segments", str(stage_dir),
-                 "--only", "transitions", "--apply"])
-            # 注意：fix_spike 只能修"时间域"缺陷（帧差尖峰/突发）。LTX 还有
-            # "空间域"单帧伪影（手部糊化、腰髋雾带——帧差正常、只有视觉能
-            # 发现，e2egreet01 实测 2 处），上线前建议对每段抽帧做一次视觉
-            # 抽检（GLM 视觉模型），发现坏帧用邻帧替换。
-            # 终检门：尖峰>10 ∪ 产出仍缺失（missing.json 记录且文件确实没落盘）
+            # 2026-11-09 用户拍板：模型出什么样就用什么样——光流修瞬移、剪尾段
+            # 沉降、尖峰帧混合、腿部稳定全部撤掉。过渡有问题靠终检门重掷。
+            # 终检门：尖峰>10 ∪ 黑帧/亮度崩塌（collect 内硬拦）∪ 定格超限 ∪ 仍缺失
             rest = set(gate_transitions(stage_dir))
+            for p in sorted(stage_dir.glob("* to *.mp4")):
+                fz = _freeze_run(p)
+                if fz >= FREEZE_GATE:
+                    rest.add(p.stem)
             miss_path = ROOT / "runs" / run_id / "missing.json"
             if miss_path.is_file():
                 rest |= {m["pair"] for m in json.loads(miss_path.read_text(encoding="utf-8"))
@@ -575,23 +818,41 @@ def main():
             # 3 轮后仍缺：降级上架（缺过渡=动作切换处跳变），如实记录不掩盖
             prog.write(3, f"过渡 3 轮自愈后仍差 {len(remaining)} 条：{remaining}"
                           "（带残差继续：缺过渡=动作切换处跳变的降级形态）")
+        elif pairs:
+            # 过渡统一到基础段的最终颜色（纯调色：SCAIL 与 LTX 渲染域不同，
+            # 不统一的话每条过渡两端都会出现明暗台阶）。基础段已是目标色，
+            # 这次只会动过渡段——transitions-only 是硬约束：基础段被二次染色
+            # 曾把嘴闭门（mouth_dark 0.54→0.53）顶翻，终检白跑 14 条过渡
+            # （2026-11-10 e2e 实锤）。帧数/构图/动作一律不动。
+            run(["studio/unify_color.py", "--segments", str(stage_dir),
+                 "--apply", "--scope", "transitions"])
+            prog.write(3, "过渡调色完成（与基础段同色；未做任何裁切/插帧/修正）")
         tick(3, "过渡生成完成")
 
-        # 4 QA
-        tick(4, "正在进行质量检查…", dry_sleep=0)
-        qa_out = ROOT / "runs" / "make_avatar" / name
+        # 4 QA（基础段门已在阶段 2.5 跑完——顺序是 2026-11-09 用户特意调整的：
+        #   先查动作段再产过渡，避免坏段白烧一遍过渡时间。这里只补身份审计
+        #   与过渡门汇总，基础段若在 2.5 就没过，base_bad 会带到这里如实记录）
         # 注意：qa_segments/audit_identity 的 --out 都是文件路径，绝不能共用
         # 同名前缀——曾把 "qa" 同时当文件(qa_segments)和目录(audit)用，第二轮
         # 起写入即 PermissionError（2026-11-08 实锤）。各用独立文件名。
-        run(["studio/qa_segments.py", "--segments", str(stage_dir),
-             "--out", str(qa_out / "qa_report.json")])
-        ref = "idle1+idle2+idle3+greet+talk+talk2"
-        # ⑧ refs 追加 guizi：显式审计"是否串成鬼子"（data/avatars/guizi 实测在盘），
-        # 输出进 identity.json 供人工/视觉闸复核
+        tick(4, "正在进行质量检查…", dry_sleep=0)
+        ref = "+".join(segs)
         run(["studio/audit_identity.py", "--segments", str(stage_dir),
              "--expect", ref, "--refs", f"{ref},my_avatar,yy,guizi",
              "--out", str(qa_out / "identity.json")])
-        tick(4, "质量检查完成")
+        # 兜底复检一次基础段（此时文件已定型，理论上与 2.5 结论一致）。
+        # check=False：qa 非零码=有段不合格（正常结论），产线带残差继续，
+        # 绝不在终检这里崩——降级上架也是上架，缺什么如实写进进度
+        run(["studio/qa_segments.py", "--segments", str(stage_dir),
+             "--out", str(qa_out / "qa_report.json")], check=False)
+        base_bad = gate_base_segments(stage_dir, qa_out / "qa_report.json")
+        if base_bad:
+            prog.write(4, f"基础段仍不合格：{base_bad}（动作段门在阶段 2.5 已重掷过，"
+                          "属顽固项；建议删除该人物重做或更换照片）")
+        elif remaining:
+            tick(4, f"质量检查完成（动作段全部通过；{len(remaining)} 条过渡未过门）")
+        else:
+            tick(4, "质量检查完成（全部通过）")
 
         # 5 组装 + 注册
         tick(5, "正在组装数字人并上架…", dry_sleep=0)
@@ -611,6 +872,10 @@ def main():
         prog.write(0, f"制作失败：{error}", ok=False)
         print(f"失败：{error}", flush=True)
         sys.exit(1)
+    finally:
+        # 成功/失败/中断都必须把数字人引擎还回来——用户做完制作还要用陪伴页
+        if engine_yielded:
+            _engine_restore(prog, args.backend_url)
 
 
 if __name__ == "__main__":

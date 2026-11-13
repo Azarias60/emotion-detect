@@ -2,6 +2,7 @@
 """大模型分析服务：情绪报告生成、健康问诊分析、心理问题生成与疲劳建议。"""
 import json
 import re
+import time
 from openai import OpenAI
 
 from core.config import AI_CONFIG
@@ -11,9 +12,101 @@ logger = get_logger(__name__)
 
 # 心理问诊的本地兜底问题（大模型不可用或产出不足 5 题时使用）
 DEFAULT_PSYCHOLOGY_QUESTIONS = [
-    "1.最近心情怎么样？", "2.睡眠还好吗？", "3.压力大吗？", "4.有什么烦恼吗？", "5.饮食正常吗？",
+    "1.最近心情怎么样？", "2.睡眠还好吗？", "3.最近压力大吗？", "4.有什么烦恼吗？", "5.饮食正常吗？",
     "6.工作顺利吗？", "7.社交多吗？", "8.运动吗？", "9.有爱好吗？", "10.对未来乐观吗？",
 ]
+
+# 心理咨询参考问题缓存（与用户状态无关，避免每次打开情绪页都等一次大模型）
+_PSYCH_QUESTIONS_TTL = 30 * 60
+_psych_questions_cache: list = []
+_psych_questions_at = 0.0
+
+
+# 表情模型七类 → 喜怒哀虑四宫格（兜底报告与最终判定用）
+_FACE_TO_MOOD = {
+    "happy": ("喜", "开心"),
+    "surprise": ("喜", "惊讶"),
+    "angry": ("怒", "生气"),
+    "sad": ("哀", "难过"),
+    "disgust": ("哀", "不适"),
+    "fear": ("虑", "焦虑"),
+    "neutral": (None, "平静"),
+}
+
+
+def _safe_count(value) -> int:
+    """计数安全转换：任何脏数据都归零，绝不在兜底路径里抛异常。"""
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _fallback_emotion_report(analysis_data: dict) -> str:
+    """大模型不可用时的数据驱动兜底报告（2026-11-13 重写）。
+
+    旧兜底把 "分析报告生成失败：Connection error" 原文抛给用户看；现在改为
+    用已采集到的真实指标（表情分布 / 心率 / 语音转写）组织一段可读结论，
+    并保留前端解析依赖的「最终判定」与「喜怒哀虑统计」两行固定格式。
+
+    铁律：本函数运行在 LLM 失败的 except 分支里，自身绝不能再抛异常——
+    否则"兜底"变 500，用户连兜底报告都拿不到。所有外部数据都过 _safe_count。
+    """
+    stats = analysis_data.get("face_emotion_stats") or {}
+    if not isinstance(stats, dict):
+        stats = {}
+    total_frames = _safe_count(analysis_data.get("total_frames"))
+    heart_rate = analysis_data.get("heart_rate") or {}
+    if not isinstance(heart_rate, dict):
+        heart_rate = {}
+    segments = analysis_data.get("voice_segments") or []
+    if not isinstance(segments, list):
+        segments = []
+
+    # 先归一化成 (标签, 非负整数)，后面排序/统计都基于干净数据
+    normalized = []
+    for label, count in stats.items():
+        c = _safe_count(count)
+        if c > 0:
+            normalized.append((str(label), c))
+
+    mood_counts = {"喜": 0, "怒": 0, "哀": 0, "虑": 0}
+    verdict = "平静"
+    best = 0
+    for label, c in normalized:
+        mood, name = _FACE_TO_MOOD.get(label.lower(), (None, None))
+        if mood:
+            mood_counts[mood] += c
+            # 只有认识的表情才竞争"主导情绪"；未知标签只进分布不进判定
+            if c > best:
+                best, verdict = c, name
+
+    lines = [
+        "本次情绪识别基于本地多模态数据自动生成（深度分析引擎暂不可用，以下为指标直读结论）。",
+    ]
+    if total_frames and normalized:
+        distribution = "、".join(
+            f"{label} {c} 帧" for label, c in sorted(normalized, key=lambda kv: -kv[1])
+        )
+        lines.append(f"共分析 {total_frames} 帧人脸画面，表情分布：{distribution}。")
+        lines.append(
+            f"面部主导情绪为「{verdict}」，喜怒哀虑计数：喜 {mood_counts['喜']}、"
+            f"怒 {mood_counts['怒']}、哀 {mood_counts['哀']}、虑 {mood_counts['虑']}。"
+        )
+    else:
+        lines.append("本次未采集到有效人脸画面，暂无法给出表情结论。")
+    avg_hr = heart_rate.get("avg_hr")
+    if isinstance(avg_hr, (int, float)) and not isinstance(avg_hr, bool) and avg_hr:
+        lines.append(f"平均心率 {avg_hr} bpm，可结合当时的状态参考解读。")
+    if segments:
+        lines.append(f"语音转写得到 {len(segments)} 段发言内容，已纳入文本情绪参考。")
+    lines.append("建议结合自身感受综合判断；如需更详细的报告解读，可稍后重新分析。")
+    lines.append(f"最终判定：{verdict}")
+    lines.append(
+        f"喜怒哀虑统计：喜:{mood_counts['喜']} 怒:{mood_counts['怒']} "
+        f"哀:{mood_counts['哀']} 虑:{mood_counts['虑']}"
+    )
+    return "\n".join(lines)
 
 
 def extract_emotion_count_from_report(report: str) -> dict:
@@ -84,8 +177,8 @@ def generate_emotion_analysis_report(analysis_data: dict) -> str:
         report = _extract_content(completion)
         return report or "分析报告生成为空\n最终判定：平静\n喜怒哀虑统计：喜:0 怒:0 哀:0 虑:0"
     except Exception as e:
-        logger.error("AI生成失败: %s", e)
-        return f"分析报告生成失败：{str(e)}\n最终判定：未知\n喜怒哀虑统计：喜:0 怒:0 哀:0 虑:0"
+        logger.error("AI生成失败，改用指标直读兜底: %s", e)
+        return _fallback_emotion_report(analysis_data)
 
 
 def generate_fatigue_advice(physiological: dict) -> dict:
@@ -196,7 +289,15 @@ def generate_health_analysis_report(
 
 
 def generate_psychology_questions() -> list:
-    """生成或回退心理咨询建议问题。"""
+    """生成或回退心理咨询建议问题。
+
+    带 30 分钟进程内缓存：这个问题列表与用户状态无关，每次打开情绪检测页
+    都重新问一遍大模型会让首屏白等十几秒（2026-11-13 修复）。
+    """
+    global _psych_questions_cache, _psych_questions_at
+    now = time.monotonic()
+    if _psych_questions_cache and now - _psych_questions_at < _PSYCH_QUESTIONS_TTL:
+        return list(_psych_questions_cache)
     try:
         client = _get_client()
         completion = _chat_completion(
@@ -221,7 +322,14 @@ def generate_psychology_questions() -> list:
                 generated_questions.append(line)
                 if len(generated_questions) == 10:
                     break
-        return generated_questions if len(generated_questions) >= 5 else DEFAULT_PSYCHOLOGY_QUESTIONS
+        if len(generated_questions) >= 5:
+            # 只缓存大模型的真实产出：兜底默认值不写缓存，否则一次网络抖动
+            # 会把默认问题钉死 30 分钟（2026-11-13 DeepSeek 审查意见）
+            _psych_questions_cache = list(generated_questions)
+            _psych_questions_at = now
+            return generated_questions
+        result = DEFAULT_PSYCHOLOGY_QUESTIONS
     except Exception as e:
         logger.error("AI生成问题失败，使用默认值: %s", e)
-        return DEFAULT_PSYCHOLOGY_QUESTIONS
+        result = DEFAULT_PSYCHOLOGY_QUESTIONS
+    return result

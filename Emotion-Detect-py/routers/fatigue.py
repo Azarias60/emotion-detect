@@ -1,10 +1,11 @@
 # -*-coding: utf-8 -*-
 """疲劳检测路由模块。"""
 from fastapi import APIRouter, Depends, HTTPException
+from starlette.concurrency import run_in_threadpool
+
 from core.responses import success
 
 from core.logger import get_logger
-from core.state import fatigue_analysis_lock
 from services.analysis_pipeline import detection_session
 from services.dependencies import get_detection_service
 from services.detection_service import DetectionService
@@ -25,13 +26,14 @@ async def detect_fatigue(
 
     logger.info("[疲劳检测][START] 开始分析一分钟检测视频")
     async with detection_session(
-        fatigue_analysis_lock,
+        "疲劳检测",
         temp_prefix="fatigue_",
         mcu_video_name="fatigue_mcu.mp4",
-        busy_detail="疲劳检测任务正在分析，请勿重复提交",
         error_detail="疲劳检测失败",
         device=service.device,
     ) as (_, video_path):
-        data = service.fatigue(video_path)
+        # 线程池跑重活：dlib 逐帧 CPU 分析不再阻塞事件循环（/video_feed 与
+        # 其他接口保持响应，2026-11-11 速度优化）
+        data = await run_in_threadpool(service.fatigue, video_path)
         logger.info("[疲劳检测][DONE] 疲劳检测结果已返回")
         return success(data, "疲劳检测成功")

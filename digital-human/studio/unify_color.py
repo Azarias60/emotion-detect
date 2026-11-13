@@ -30,7 +30,11 @@ for p in (str(ENGINE), str(ROOT)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-BASE_NAMES = ("idle1", "idle2", "idle3", "greet", "talk", "talk2")
+# 基础段名清单（目标统计只从基础段来）；目录里出现清单外的基础段时
+# 自动按"文件名不含 ' to '"兜底——动作模板扩段（2026-11-07 加到 7 段）
+# 不必再改这里。
+BASE_NAMES = ("idle1", "idle2", "idle3", "greet", "talk", "talk2",
+              "comfort", "encourage", "praise", "dance")
 MAX_OFFSET = 12.0  # 脸部微调的单通道上限（超过说明异常，clip 住）
 
 
@@ -85,6 +89,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--segments", required=True)
     ap.add_argument("--apply", action="store_true")
+    ap.add_argument("--scope", choices=["all", "base", "transitions"], default="all",
+                    help="处理范围。base=只染基础段（阶段2用）；transitions=只染过渡段"
+                         "（过渡生成后用）。基础段必须只染一次：终检的嘴部暗度门是"
+                         " BORDERLINE 敏感量，二次染色曾把 idle1/encourage 的"
+                         " mouth_dark 从 0.54 顶到 0.53 翻门（2026-11-10 e2e 实锤）")
     args = ap.parse_args()
     seg_dir = Path(args.segments)
 
@@ -93,11 +102,9 @@ def main():
 
     # 目标：基础段联合（整帧 LAB + 脸部 BGR）
     lab_tgt, face_tgt = [], []
-    for name in BASE_NAMES:
-        f = seg_dir / f"{name}.mp4"
-        if not f.is_file():
-            continue  # 单段/裁剪模式：目标统计只统计实际存在的基础段
-        fr, _ = load(f)
+    present = [v for v in sorted(seg_dir.glob("*.mp4")) if " to " not in v.stem]
+    for v in present:
+        fr, _ = load(v)
         idxs = np.linspace(0, len(fr) - 1, min(6, len(fr))).astype(int)
         lab_tgt.append(lab_stats(fr, idxs))
         fm = face_mean(fr, det)
@@ -111,6 +118,11 @@ def main():
     print(f"目标：整帧LAB mean={tgt_mean.round(1)} | 脸部BGR={face_base.round(1)}")
 
     for v in sorted(seg_dir.glob("*.mp4")):
+        is_trans = " to " in v.stem
+        if args.scope == "base" and is_trans:
+            continue
+        if args.scope == "transitions" and not is_trans:
+            continue
         fr, fps = load(v)
         n = len(fr)
         idxs = np.linspace(0, n - 1, min(6, n)).astype(int)

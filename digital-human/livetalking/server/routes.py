@@ -208,4 +208,30 @@ def setup_routes(app):
     app.router.add_post("/dance", dance)
     app.router.add_post("/interrupt_talk", interrupt_talk)
     app.router.add_post("/is_speaking", is_speaking)
-    app.router.add_static('/', path='web')
+
+    async def current_segment(request):
+        """当前播放片段名（idle1/greet/X_to_Y），供前端待机框展示播放逻辑。"""
+        try:
+            sessionid = request.query.get('sessionid', '')
+            sess = get_session(request, sessionid)
+            if sess is None:
+                return web.json_response({"code": 1, "msg": "session 不存在"})
+            from state_machine import TYPE_NAMES
+            st = int(getattr(sess, 'custom_audiotype', 0) or 0)
+            if getattr(sess, '_in_transition', False):
+                tgt = int(getattr(sess, '_transition_target', 0) or 0)
+                seg = "%s_to_%s" % (TYPE_NAMES.get(st, st), TYPE_NAMES.get(tgt, tgt))
+                kind = "transition"
+            else:
+                seg = TYPE_NAMES.get(st, "state%s" % st)
+                kind = "talk" if st in (8, 9) else ("idle" if st in (1, 2, 3) else "action")
+            return web.json_response({"code": 0, "data": {"segment": seg, "kind": kind}})
+        except Exception as e:
+            return web.json_response({"code": 1, "msg": str(e)})
+    app.router.add_get("/api/session/segment", current_segment)
+    # web/ 已按用户要求删除（2026-11-12，旧 LivETalking 前端页）：
+    # 目录不存在时 add_static 会直接 ValueError 崩掉整个引擎启动——
+    # 情感数字人走 Vite 前端（app/），这条静态路由没有存在意义。
+    import os
+    if os.path.isdir('web'):
+        app.router.add_static('/', path='web')

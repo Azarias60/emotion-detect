@@ -6,11 +6,27 @@ import numpy as np
 from core.hardware_profile import CAMERA_MAX_FPS
 
 
+class DeviceNotConnectedError(RuntimeError):
+    """单片机未建立物理连接（串口未开/WiFi 未握手）。"""
+
+
+class CaptureAlreadyRunningError(RuntimeError):
+    """采集窗口已在进行中。"""
+
+
 class HardwareService:
     def __init__(self, device):
         self.device = device
 
     def start(self, duration, capture_video=True):
+        # 没连设备也返回"已启动"的话，用户要白等整个录制窗口，
+        # 最后在分析时才拿到"暂无已采集的视频画面"（2026-11-13 修复）。
+        if not self.device.is_connected:
+            raise DeviceNotConnectedError(
+                "单片机还未连接——请先点击右上角硬件按钮，确认串口/WiFi 连接成功后再开始采集"
+            )
+        if self.device.is_recording:
+            raise CaptureAlreadyRunningError("采集已在进行中，请先停止或等待本次采集结束")
         self.device.start_recording(duration=duration, capture_video=capture_video)
 
     def stop(self):

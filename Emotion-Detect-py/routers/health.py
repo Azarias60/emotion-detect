@@ -8,7 +8,6 @@ from core.responses import success
 from core.contracts import ConsultationInput
 from pydantic import ValidationError
 from core.logger import get_logger
-from core.state import health_analysis_lock
 from services.ai_service import generate_health_questions
 from services.analysis_pipeline import detection_session
 from services.dependencies import get_detection_service
@@ -45,10 +44,9 @@ async def detect_health_session(
 
     logger.info("[健康问诊][START] 开始舌象关联的一分钟问诊分析")
     async with detection_session(
-        health_analysis_lock,
+        "健康问诊",
         temp_prefix="health_session_",
         mcu_video_name="health_recorded.mp4",
-        busy_detail="健康问诊任务正在分析，请勿重复提交",
         error_detail="健康问诊分析失败",
         device=service.device,
     ) as (temp_dir, video_path):

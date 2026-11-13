@@ -1,0 +1,8 @@
+{
+  "spk_id": "voice_official_male",
+  "ref_file": "E:\\ZCodeWorkspace\\scratch\\emotionDetect\\web_voices\\dehua_male_clip8.wav",
+  "source_file": "E:\\ZCodeWorkspace\\scratch\\emotionDetect\\web_voices\\dehua_male_clip8.wav",
+  "ref_text": "所以我觉得好的技术它一定是有温度的，能够真正服务于大家，而不是冷冰冰的摆",
+  "ref_sha256": "bdf8b13e5e2bedb2069c0bae3a791e814c081d07180aa179b93c8ebc5f07847d",
+  "model_dir": "E:\\emotionDetect\\digital-human\\livetalking\\models\\Fun-CosyVoice3-0.5B"
+}

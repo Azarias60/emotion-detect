@@ -1,0 +1,8 @@
+{
+  "spk_id": "voice_official_female",
+  "ref_file": "data\\voices\\_ref\\official_female_395727fb4b2cab9f.wav",
+  "source_file": "data\\drop\\official_female.wav",
+  "ref_text": "今天我们在这里聊聊天，说说最近发生在身边的那些有趣的事情。",
+  "ref_sha256": "441a6b41eac637e2974e09e8008e25758600f984181f3bc14d5bf6ccafb6dd83",
+  "model_dir": "E:\\emotionDetect\\digital-human\\livetalking\\models\\Fun-CosyVoice3-0.5B"
+}

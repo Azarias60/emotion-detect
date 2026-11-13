@@ -637,6 +637,22 @@ video {
   line-height: 1.6;
 }
 
+/* 报告弹窗底部按钮区（2026-11-13 加"保存报告"后补样式） */
+.report-dialog-footer {
+  display: flex;
+  gap: 12px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid rgba(0, 242, 255, 0.16);
+}
+.report-dialog-footer .fui-btn {
+  flex: 1;
+  max-width: 220px;
+}
+.report-dialog-footer .fui-btn.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 .report-loading {
   display: flex;
   flex-direction: column;

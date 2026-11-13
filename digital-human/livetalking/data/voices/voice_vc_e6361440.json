@@ -1,0 +1,8 @@
+{
+  "spk_id": "voice_vc_e6361440",
+  "ref_file": "data\\drop\\vc_e6361440.wav",
+  "source_file": "data\\drop\\vc_e6361440.wav",
+  "ref_text": "今天我们在这里聊聊天，说说最近发生在身边的那些有趣的事情。",
+  "ref_sha256": "68837485c66ab0cd032e5684943d9e6ceb69cc65fe30416667ca93fe1826b1b7",
+  "model_dir": "E:\\emotionDetect\\digital-human\\livetalking\\models\\Fun-CosyVoice3-0.5B"
+}

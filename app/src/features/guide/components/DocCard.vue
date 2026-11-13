@@ -35,8 +35,10 @@ const points = computed(() => props.card?.points || [])
         </li>
       </ul>
       <footer class="doc-foot">
-        <router-link v-if="!isDoc && card.path" :to="card.path" class="doc-link">
-          去检测 →
+        <!-- doc 卡也可带跳转链接（2026-11-13）：检测结果回读卡要能直达
+             报告详情页，以前只有模块卡有链接，资料卡是死胡同 -->
+        <router-link v-if="card.path" :to="card.path" class="doc-link">
+          {{ card.linkLabel || (isDoc ? '查看详情 →' : '去检测 →') }}
         </router-link>
         <small v-else>由数字人整理 · 仅供参考</small>
       </footer>

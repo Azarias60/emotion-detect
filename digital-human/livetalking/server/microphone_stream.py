@@ -45,7 +45,7 @@ LLM_REC_REASONS = {
     "emotion": "暖暖建议做一次情绪识别，了解你现在的心情。",
     "companion": "想找人说说话的时候，情感数字人陪你聊聊天。",
 }
-from services.action_parser import ActionTagParser
+from services.action_parser import ActionTagParser, guess_greeting_action
 from services.doc_parser import DOC_PROMPT_RULES, DocTagStripper
 from services.llm_service import LLMService
 from services.llm_memory import ConversationMemory
@@ -364,6 +364,15 @@ class MicrophoneConnection:
         self.persona_override = ""
         # 给 LLM 的情绪上下文（一条短句，无情绪时为空）
         self._emotion_note = ""
+        # 动作闸门（2026-11-12 用户拍板：平时只 talk 对口型，动作只在两种
+        # 时机放行——情绪明显变差、或连续 N 轮没有动作）：
+        #   _turns_since_action  连续多少轮没做过动作
+        #   _last_emotion        上一句情绪（诊断用）
+        #   _last_action_emotion 上一轮**因它播过动作**的负向情绪；同一负向
+        #                        持续期间不再重复播（2026-11-13 边沿触发）
+        self._turns_since_action = 0
+        self._last_emotion = "neutral"
+        self._last_action_emotion = ""
         # 最近一帧 PCM 到达时刻（断流自愈用）
         self._last_pcm_at: float | None = None
         # 导览页刚发出的模块推荐（等用户一句「好/可以」确认跳转）
@@ -547,6 +556,11 @@ class MicrophoneConnection:
         self.emotions.reset()
         self._emotion_note = ""
         self._last_rec = None
+        # 动作闸门状态一起归零：软重置后算"新用户"，上次播过什么动作、
+        # 上一句什么情绪都不该影响新一轮的边沿判定（2026-11-13）
+        self._turns_since_action = 0
+        self._last_emotion = "neutral"
+        self._last_action_emotion = ""
         if not keep_awake:
             self.wake.reset(self.mode)
         try:
@@ -559,8 +573,40 @@ class MicrophoneConnection:
         )
         await self._emit({"type": "session_reset", "mode": self.mode})
 
-    @staticmethod
-    def _emotion_note_from(evt: dict) -> str:
+    # 动作闸门常量：连续多少轮无动作后强制放行一次（用户要求 3 次）
+    ACTION_IDLE_TURNS = 3
+
+    def _action_allowed(self, emotion_evt: dict | None) -> tuple[bool, str]:
+        """本轮回复是否允许带动作（live 模式）。
+
+        2026-11-13 用户明确规则：**边沿触发**——
+          ① 情绪进入一个**新的**负向状态时播一次（从正常变差、或换了一种负向）；
+          ② 同一负向持续期间**不再播**（哪怕句间强度波动、哪怕又过了几轮）；
+          ③ 情绪恢复正常后清零，下次再变差才重新播；
+          ④ 另保留"连续 N 轮无动作"兜底，但只在情绪不差时累积。
+        旧实现用 EmotionTracker 的 changed 标志，它在同一负向下也会频繁置真，
+        导致"一直难过就一直播动作"，与用户要求不符。
+        """
+        self._turns_since_action += 1
+        key = "neutral"
+        if emotion_evt is not None:
+            key = str(emotion_evt.get("emotion") or "neutral")
+        negative = key in ("low", "anxious", "sad", "angry", "fear")
+        if negative:
+            if self._last_action_emotion == key:
+                # 同一负向持续：不再重复播动作
+                return False, ""
+            self._last_action_emotion = key
+            self._turns_since_action = 0
+            return True, f"情绪进入{key}"
+        # 情绪正常/正向：清掉边沿状态，下次变差才能再次触发
+        self._last_action_emotion = ""
+        if self._turns_since_action > self.ACTION_IDLE_TURNS:
+            self._turns_since_action = 0
+            return True, f"连续{self.ACTION_IDLE_TURNS}轮无动作"
+        return False, ""
+
+    def _emotion_note_from(self, evt: dict) -> str:
         """把情绪事件转成给模型的一句上下文。"""
         key = evt.get("emotion")
         if not key or key == "neutral":
@@ -994,7 +1040,19 @@ class MicrophoneConnection:
             # 情绪跟踪：分类这句用户原话；变化/连续同情绪时给前端发事件，
             # 连续两次同一负向情绪会附带 recommend（页面弹资料卡）
             try:
+                action_allowed, gate_reason = False, ""
                 for evt in self.emotions.feed(transcript):
+                    if evt.get("type") == "emotion":
+                        action_allowed, gate_reason = self._action_allowed(evt)
+                        # 问候开场必须能播 greet（2026-11-13 用户要求"第一句话
+                        # 打招呼就要播放 greet"）：情绪闸门只管对话中途的情绪
+                        # 动作，招呼回礼不该被它拦——第一句说「你好」情绪是中性的，
+                        # 旧逻辑不放行 → action_emitter=None → LLM 的 [greet] 标签
+                        # 根本传不到状态机，用户看到的永远是"打招呼没动作"。
+                        if not action_allowed and guess_greeting_action(transcript):
+                            action_allowed, gate_reason = True, "问候开场"
+                        if gate_reason:
+                            logger.info("[ActionGate] 本轮放行动作：%s", gate_reason)
                     if evt.get("type") == "recommend":
                         evt["action"] = self.opt.avatar_id if hasattr(self.opt, "avatar_id") else ""
                         if evt.get("kind") == "module":
@@ -1014,13 +1072,18 @@ class MicrophoneConnection:
             if mode == "live":
                 session = session_manager.get_session(session_id)
                 if session is None:
+                    logger.warning(
+                        "[Mic] 实时会话不存在: %r（WebRTC 未完成或已被重建）——本话轮将报错返回",
+                        session_id,
+                    )
                     await self._emit({"type": "error", "message": "实时口型连接尚未就绪"})
                     return
                 await self._emit({"type": "pipeline", "stage": "llm"})
                 on_text, should_stop = self._begin_live_reply(generation, session)
+                action_emitter = self._live_action_emitter(generation) if action_allowed else None
                 await asyncio.to_thread(
                     llm_response, transcript, session, {},
-                    self._live_action_emitter(generation),
+                    action_emitter,
                     on_text=on_text,
                     should_stop=should_stop,
                     on_doc=self._doc_emitter(generation),
@@ -1522,7 +1585,16 @@ class MicrophoneConnection:
             generation = self.generation
             await self._emit({"type": "transcript", "text": text, "mode": self.mode})
             try:
+                action_allowed = False
                 for evt in self.emotions.feed(text):
+                    if evt.get("type") == "emotion":
+                        action_allowed, gate_reason = self._action_allowed(evt)
+                        # 同语音路径：问候开场放行 greet
+                        if not action_allowed and guess_greeting_action(text):
+                            action_allowed, gate_reason = True, "问候开场"
+                        if gate_reason:
+                            logger.info("[ActionGate] 本轮放行动作：%s", gate_reason)
+                        self._emotion_note = self._emotion_note_from(evt)
                     if evt.get("type") == "recommend" and evt.get("kind") == "module":
                         self._last_rec = {
                             "module": evt.get("module"),
@@ -1530,8 +1602,6 @@ class MicrophoneConnection:
                             "at": time.monotonic(),
                             "turns": 0,
                         }
-                    if evt.get("type") == "emotion":
-                        self._emotion_note = self._emotion_note_from(evt)
                     await self._emit(evt)
             except Exception:
                 logger.exception("[Emotion] 情绪跟踪失败（不影响对话）")
@@ -1544,7 +1614,7 @@ class MicrophoneConnection:
                 task = asyncio.create_task(
                     asyncio.to_thread(
                         llm_response, text, session, {},
-                        self._live_action_emitter(generation),
+                        self._live_action_emitter(generation) if action_allowed else None,
                         on_text=on_text,
                         should_stop=should_stop,
                         on_doc=self._doc_emitter(generation),

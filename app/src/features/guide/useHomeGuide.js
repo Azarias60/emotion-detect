@@ -219,14 +219,18 @@ function createHomeGuide() {
     }
   }
 
-  /** SPA 离开首页：只停麦（别的页面不该被监听），WebSocket 与引擎侧
-   *  会话记忆保留——回来 init() 重新开麦即继承上次对话。 */
+  /** SPA 离开首页：停麦 + 清掉播放队列（别的页面不该被监听，也不该被
+   *  暖暖的语音追着外放——2026-11-13 修复：以前只停麦，剩余 PCM 会在
+   *  检测页上继续播，且返回首页时动画与声音已失联）。 */
   function suspendForNavigation() {
     pageActive = false
     if (listening.value) {
       listening.value = false
       stopMicTracks()
     }
+    flushStreamPlayback()
+    speaking.value = false
+    talking.value = false
   }
 
   async function api(path, options) {
@@ -323,7 +327,11 @@ function createHomeGuide() {
       )
     })
     ws.addEventListener('message', onSocketMessage)
-    ws.addEventListener('close', () => {
+    ws.addEventListener('close', (event) => {
+      // 代际守卫（2026-11-13 修复）：retry() 先 close 旧 socket 再新建，旧
+      // socket 的 close 事件异步到达时会把刚赋值的新 ws 清成 null，状态打回
+      // "正在重连"并静默失败 2.5s。只有还持有最新代际的 socket 才能动共享状态。
+      if (event.target.__gen !== socketGen) return
       ws = null
       flushStreamPlayback()
       speaking.value = false
@@ -391,10 +399,16 @@ function createHomeGuide() {
   function handleBinary(data) {
     const bytes = new Uint8Array(data)
     if (bytes.length <= 1 || bytes[0] !== 0x01) return
+    // 奇数长度切片会让 new Int16Array 抛错（Buffer 字节数非 2 倍数）——丢一包
+    // 比整个 message 处理器崩掉好（2026-11-13 修复）
+    if ((bytes.length - 1) % 2 !== 0) return
     const pcm = new Int16Array(bytes.slice(1).buffer)
     if (!audioCtx || audioCtx.state !== 'running') {
-      // 无手势时输出被自动播放策略压住：先攒着，解锁后按序补播
-      pendingPcm.push(pcm)
+      // 无手势时输出被自动播放策略压住：先攒着，解锁后按序补播。
+      // 策略说明（DeepSeek 审查 P1-14）：攒够 40 包（约 2.5 秒）就停止收流，
+      // 且保留最早的一段——解锁后播的是回复的开头（语义连贯），丢掉的是
+      // 后面的过期音频。无限积压会把几分钟前的内容一次性播完，更糟。
+      if (pendingPcm.length < 40) pendingPcm.push(pcm)
       if (pendingPcm.length >= 2) needPlayTap.value = true
       return
     }
@@ -870,6 +884,14 @@ function createHomeGuide() {
         if (ctx.state === 'running') {
           needPlayTap.value = false
           flushPendingPcm()
+          // 解锁补播时若动画早已收口（finishReplyWhenDrained 在 ctx 非 running
+          // 时 150ms 就收口了），按 pendingPcm 非空重新驱动说话动画——
+          // 否则"只闻其声不见嘴动"（2026-11-13 修复）
+          if (pendingPcm.length || playSources.size) {
+            speaking.value = true
+            talking.value = true
+            busy.value = true
+          }
         }
       })
       .catch(() => {})
@@ -976,5 +998,8 @@ function createHomeGuide() {
     retry,
     clearance,
     speak,
+    // 麦克风手动开关（2026-11-13 导出）：常听页要给人一个隐私开关——
+    // 以前 toggleMic 写好了却没导出，用户无法主动静音，开麦失败也只能干等
+    toggleMic,
   }
 }

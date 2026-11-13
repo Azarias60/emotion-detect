@@ -7,6 +7,16 @@ from ..dependencies import current_user
 from ..responses import success
 from ..schemas import ReportCreateRequest
 
+
+def _next_day_midnight(day: str) -> str:
+    """结束日期边界：次日 00:00（左开右闭区间），不受 created_at 微秒影响。"""
+    from datetime import date, timedelta
+    try:
+        d = date.fromisoformat(day) + timedelta(days=1)
+    except ValueError:
+        return f"{day}T23:59:59+00:00"
+    return f"{d.isoformat()}T00:00:00+00:00"
+
 router = APIRouter(prefix="/report", tags=["报告管理"])
 
 
@@ -32,9 +42,9 @@ def report_list(pageNum: int = Query(1, ge=1), pageSize: int = Query(10, ge=1, l
     if keyword:
         clauses.append("(title LIKE ? OR summary LIKE ?)"); params.extend([f"%{keyword}%", f"%{keyword}%"])
     if startDate:
-        clauses.append("created_at>=?"); params.append(f"{startDate}T00:00:00")
+        clauses.append("created_at>=?"); params.append(f"{startDate}T00:00:00+00:00")
     if endDate:
-        clauses.append("created_at<=?"); params.append(f"{endDate}T23:59:59+99:99")
+        clauses.append("created_at<?"); params.append(_next_day_midnight(endDate))
     where = " AND ".join(clauses)
     with database() as connection:
         total = connection.execute(f"SELECT COUNT(*) FROM reports WHERE {where}", params).fetchone()[0]

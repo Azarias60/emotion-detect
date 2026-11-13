@@ -35,14 +35,17 @@ import aiohttp
 import aiohttp_cors
 from aiortc import RTCPeerConnection, RTCSessionDescription,RTCIceServer,RTCConfiguration
 from aiortc.rtcrtpsender import RTCRtpSender
+# H264 编码器调优（2026-11-13）：aiortc 默认 Baseline profile 把 704×1280
+# 人像细节压糊了，换成 High。必须在任何 RTCPeerConnection 之前导入。
+import server.encoder_tuning  # noqa: F401
 from server.webrtc import HumanPlayer
 from avatars.base_avatar import BaseAvatar
 from llm import llm_response
 import registry
-from server.browser_app import setup_browser_routes
 from server.microphone_stream import setup_microphone_routes
 from server.routes import setup_routes
 from server.rtc_manager import RTCManager
+from server.browser_app import setup_browser_routes
 from server.session_manager import session_manager
 
 import argparse
@@ -279,8 +282,9 @@ def main():
     appasync.on_shutdown.append(on_shutdown)
     appasync.router.add_post("/offer", offer)
 
-    # The root page starts in lightweight default mode and establishes the
-    # heavier WebRTC session only after the user switches modes.
+    # 2026-11-12：旧 LivETalking 前端页（web/）已按用户要求删除，但
+    # browser_app 里的 /api/assets、/api/voice、/api/personas 等 API 是
+    # 情感数字人正在用的——照常注册（页面路由因 web/ 不存在自动 404）。
     setup_browser_routes(appasync, opt)
     setup_microphone_routes(appasync, opt)
 

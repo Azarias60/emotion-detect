@@ -1,6 +1,22 @@
 <script setup>
+import { onMounted, ref } from 'vue'
 import DetectionNav from './DetectionNav.vue'
+import { detectionClient as http, responseData } from '../api/http.js'
+import { stopCapture } from '../api/hardware.js'
+
 defineProps({ title: { type: String, required: true }, subtitle: { type: String, default: '' } })
+
+// 互不打扰（2026-11-11）：进入任一检测页即
+// ① 停掉上一个模块遗留的硬件采集窗口；② 读取全局检测状态，若另一模块
+// 正在分析则显示提示条（后端全局锁同时保证本模块开始会被 409 拒绝）。
+const globalBusy = ref('')
+onMounted(async () => {
+  try { await stopCapture() } catch { /* 没有采集在跑时静默 */ }
+  try {
+    const status = await responseData(http.get('/detection/status'))
+    if (status?.busy) globalBusy.value = status.module
+  } catch { /* 后端未升级时静默 */ }
+})
 </script>
 
 <template>
@@ -15,6 +31,9 @@ defineProps({ title: { type: String, required: true }, subtitle: { type: String,
       </div>
       <DetectionNav />
     </header>
+    <div v-if="globalBusy" class="detection-busy-strip">
+      「{{ globalBusy }}」正在进行中——检测结果出来前，本模块暂不能开始
+    </div>
     <main class="detection-body"><slot /></main>
   </div>
 </template>
@@ -139,6 +158,16 @@ body.detection-locked .detection-nav {
   border-color: #c86d13;
   background: rgba(200, 109, 19, 0.12);
 }
+/* 保存报告（2026-11-13）：金色=存档类主动作，与橙色"分析中"区分 */
+.tech-button.gold {
+  color: #ffd98a;
+  border-color: #d9a441;
+  background: rgba(217, 164, 65, 0.14);
+}
+.tech-button.gold:hover:not(:disabled) {
+  background: rgba(217, 164, 65, 0.26);
+  box-shadow: 0 0 13px rgba(217, 164, 65, 0.3);
+}
 .status-tag {
   display: inline-flex;
   padding: 3px 8px;
@@ -167,5 +196,15 @@ body.detection-locked .detection-nav {
   .detection-screen {
     padding: 0 12px 18px;
   }
+}
+.detection-busy-strip {
+  margin: 0 2px 10px;
+  padding: 10px 16px;
+  border: 1px solid #d9a441;
+  border-radius: 8px;
+  background: rgba(217, 164, 65, 0.12);
+  color: #ffd98a;
+  font-size: 13.5px;
+  letter-spacing: 0.5px;
 }
 </style>

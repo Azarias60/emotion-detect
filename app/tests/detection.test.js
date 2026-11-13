@@ -532,3 +532,62 @@ test('emotion flow finishes hardware capture before submitting a file-free analy
       requests.findIndex((request) => request.url === '/emotion/detect')
   )
 })
+
+// ── 检测报告保存（2026-11-13 新增）──
+test('report save posts the detection payload and marks saved', async () => {
+  const calls = []
+  const scope = effectScope()
+  const save = await scope.run(async () => {
+    const { useReportSave } = await import('../src/features/detection/useReportSave.js')
+    const instance = useReportSave({
+      navigate: () => {},
+      post: async (path, body) => {
+        calls.push({ path, body })
+        return { code: 0 }
+      },
+    })
+    return instance
+  })
+  const ok = await save.save({
+    type: 'emotion',
+    title: '情绪识别报告',
+    summary: '最终判定：平静',
+    result: { total_frames: 100 },
+    rawReport: '最终判定：平静',
+  })
+  assert.equal(ok, true)
+  assert.equal(save.saved.value, true)
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].path, '/report/save')
+  assert.equal(calls[0].body.type, 'emotion')
+  assert.deepEqual(calls[0].body.result, { total_frames: 100 })
+  scope.stop()
+})
+
+test('report save routes to login on 401 instead of silently failing', async () => {
+  const visited = []
+  const scope = effectScope()
+  const save = await scope.run(async () => {
+    const { useReportSave } = await import('../src/features/detection/useReportSave.js')
+    return useReportSave({
+      navigate: (to) => visited.push(to),
+      post: async () => {
+        throw Object.assign(new Error('请先登录'), { response: { status: 401 } })
+      },
+    })
+  })
+  // node 没有 window：临时造一个最小 stub 供 confirm/location 用
+  const hadWindow = 'window' in globalThis
+  const originalWindow = globalThis.window
+  globalThis.window = { confirm: () => true, location: { pathname: '/detect/fatigue', search: '' } }
+  const ok = await save.save({ type: 'fatigue', title: '疲劳检测报告' })
+  if (hadWindow) globalThis.window = originalWindow
+  else delete globalThis.window
+  assert.equal(ok, false)
+  assert.equal(save.saved.value, false)
+  assert.equal(save.error.value, '未登录，报告未保存')
+  assert.equal(visited.length, 1)
+  assert.equal(visited[0].path, '/login')
+  assert.ok(visited[0].query.redirect)
+  scope.stop()
+})

@@ -146,6 +146,7 @@ let pendingTalk = false // 过渡中被要求说话（非首次）
 let pendingGreet = false // 过渡中被要求首次说话（要走 greet 链）
 let destroyed = false
 let retryPlayBound = false
+let visibilityHandler = null // 卸载时移除用（见 bindRetryPlay）
 // 每层的 src 占用标记：playNext 装入期间防止 preload 抢掉（曾导致播放错位一个片段）
 const layerCommit = { a: null, b: null }
 
@@ -185,9 +186,12 @@ function bindRetryPlay() {
   document.addEventListener('pointerdown', retry, { once: true })
   document.addEventListener('keydown', retry, { once: true })
   // 切回标签页时恢复播放（浏览器会在后台标签页暂停视频）
-  document.addEventListener('visibilitychange', () => {
+  // 命名函数 + 卸载时移除（2026-11-13 修复）：以前匿名监听每挂载一次就
+  // 泄漏一个，来回首页几次之后堆一排 visibilitychange 回调
+  visibilityHandler = () => {
     if (!document.hidden) retry()
-  })
+  }
+  document.addEventListener('visibilitychange', visibilityHandler)
 }
 
 /** 把某层装入指定片段（已是目标则不动）。 */
@@ -481,6 +485,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   destroyed = true
   if (holdTimer) clearTimeout(holdTimer)
+  if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler)
 })
 
 defineExpose({ startSpeaking, stopSpeaking, greetNow, talkNow, stopTalkingNow, currentState: () => current, setMouthOpenness })

@@ -166,7 +166,8 @@ async def companion_chat(req: ChatRequest):
             "health": ["舌", "心率", "身体", "不舒服", "疼", "健康"],
         }.items():
             if any(w in req.message for w in words):
-                module = {"key": key, **MODULES[key]}
+                # kind 与 LLM 路径的卡片结构保持一致（前端按 kind 渲染）
+                module = {"kind": "module", "key": key, **MODULES[key]}
                 break
 
     return success({

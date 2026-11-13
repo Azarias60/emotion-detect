@@ -88,6 +88,11 @@ def cmd_submit(args):
     run_dir = ROOT / "runs" / args.run
     run_dir.mkdir(parents=True, exist_ok=True)
     recipe = load_recipes(args.recipe)
+    # 帧率：命令行显式值优先于配方（2026-11-09 产线踩坑：改错了配方文件，
+    # 默认配方其实是 scail_stability.json 而非 scail_guizi.json，导致提交的
+    # 工作流仍是 20fps 而没人发现——现在产线显式传 25 并在提交后校验）
+    force_rate = args.force_rate or recipe.get("force_rate", 20)
+    out_fps = args.out_fps or recipe.get("fps", 20)
     global DRIVER_DIR
     if args.driver_dir:
         DRIVER_DIR = Path(args.driver_dir)
@@ -146,8 +151,8 @@ def cmd_submit(args):
                 # 负向提示词：节点 4 实际接进 WanSCAILToVideo(114/182)，喂文本
                 # 即生效——旧版写死 "" 等于白白浪费一路条件（2026-11-08 修复）
                 negative=recipe.get("negative_prompt", ""),
-                force_rate=recipe.get("force_rate", 20),
-                fps=recipe.get("fps", 20),
+                force_rate=force_rate,
+                fps=out_fps,
                 ref_image=ref,
             )
             # 分模块：每段工作流 JSON 落盘（绑定参考图=上传照片+姿态视频+本段提示词）
@@ -271,6 +276,11 @@ def main():
                     help="外观描述文件（视觉 LLM 看上传照片写的英文外观句；空=用配方默认指代）")
     ap.add_argument("--workflow-dir", default="",
                     help="每段工作流 JSON 落盘目录（分模块：greet/idle/talk 各一个）")
+    ap.add_argument("--force-rate", type=int, default=0,
+                    help="覆盖配方的 force_rate（0=用配方值）。产线显式传 25："
+                         "SCAIL 直接按引擎原生帧率出片，组装时不补帧也不插帧")
+    ap.add_argument("--out-fps", type=int, default=0,
+                    help="覆盖配方的输出 fps（0=用配方值）")
     ap.add_argument("--timeout", type=int, default=OUTPUT_WAIT)
     args = ap.parse_args()
     if args.cmd == "submit":
