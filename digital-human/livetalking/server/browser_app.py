@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from aiohttp import web
 from utils.logger import logger
 
 from server import assets, lifecycle, personas
+from services import llm_settings
 from server.session_manager import session_manager
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -136,6 +138,37 @@ def setup_browser_routes(app: web.Application, opt) -> None:
     async def asset_list(_request: web.Request) -> web.Response:
         return web.json_response(assets.snapshot())
 
+    # ── 模型配置（页面可改，key 只存本机 data/llm_config.json）────────
+    # 页面上永远拿不到明文 key：GET 只回掩码，POST 只接受写入。
+
+    async def llm_config_get(_request: web.Request) -> web.Response:
+        return web.json_response({"config": llm_settings.snapshot()})
+
+    async def llm_config_post(request: web.Request) -> web.Response:
+        try:
+            data = await request.json()
+        except Exception:
+            return web.json_response({"error": "请求体不是 JSON"}, status=400)
+        if not isinstance(data, dict):
+            return web.json_response({"error": "请求体必须是对象"}, status=400)
+        try:
+            snapshot = llm_settings.update(
+                api_key=data.get("apiKey"),
+                base_url=data.get("baseUrl"),
+                model=data.get("model"),
+                clear_key=bool(data.get("clearKey")),
+            )
+        except ValueError as exc:
+            return web.json_response({"error": str(exc)}, status=400)
+        return web.json_response({"ok": True, "config": snapshot,
+                                  "message": "已保存，下一句对话即生效"})
+
+    async def llm_config_test(_request: web.Request) -> web.Response:
+        # 发一条 1-token 请求验证（网络阻塞，放线程池里跑，不卡事件循环）
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(None, llm_settings.probe)
+        return web.json_response(result, status=200 if result.get("ok") else 502)
+
     async def voice_switch(request: web.Request) -> web.Response:
         try:
             data = await request.json()
@@ -182,6 +215,9 @@ def setup_browser_routes(app: web.Application, opt) -> None:
     app.router.add_get("/api/personas", persona_list)
     app.router.add_post("/api/persona", persona_switch)
     app.router.add_get("/api/assets", asset_list)
+    app.router.add_get("/api/llm/config", llm_config_get)
+    app.router.add_post("/api/llm/config", llm_config_post)
+    app.router.add_post("/api/llm/config/test", llm_config_test)
 
     async def current_segment(request):
         """当前播放片段名（idle1/greet/X_to_Y），供前端待机框展示播放逻辑。"""

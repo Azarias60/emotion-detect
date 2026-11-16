@@ -186,6 +186,10 @@ def main():
     from config import parse_args
     opt = parse_args()
 
+    # 模型配置：页面「模型设置」写的 data/llm_config.json 优先于命令行（key 不入库）
+    from services import llm_settings
+    llm_settings.init(opt)
+
     # 初始化人物/音色素材库（建 data/drop 投递文件夹 + 忽略遗留素材）
     from server import assets as asset_registry
     asset_registry.init(opt)
@@ -255,8 +259,9 @@ def main():
                 from services.llm_service import LLMService
 
                 started = time.perf_counter()
-                LLMService(opt).client.chat.completions.create(
-                    model=opt.llm_model,
+                service = LLMService(opt)
+                service.client.chat.completions.create(
+                    model=service.model,
                     messages=[{"role": "user", "content": "hi"}],
                     max_tokens=1,
                 )

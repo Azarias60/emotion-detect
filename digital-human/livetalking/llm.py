@@ -168,6 +168,7 @@ def llm_response(
     on_text=None,
     should_stop=None,
     on_doc=None,
+    on_error=None,
     context_note: str = "",
     persona_override: str = "",
     auto_doc: bool = True,
@@ -185,6 +186,10 @@ def llm_response(
     ``should_stop()`` is polled between chunks: when it turns true the reply
     stops feeding TTS immediately, so a superseded reply cannot keep piling
     segments on top of the new one.
+
+    ``on_error(text)`` is called once when the reply cannot be produced (比如
+    引擎没有配置模型 Key)。live 模式没有别的错误通道——不回调的话页面只会
+    "没反应"，用户无从判断是没 key、网络还是模型出错。
 
     The reply token (``begin_reply()``) is captured **once, at reply start**,
     and stamped on every segment. That is what makes ``flush_talk()``
@@ -359,8 +364,20 @@ def llm_response(
         logger.info(
             "LLM stream completed in %.2fs", time.perf_counter() - started
         )
-    except Exception:
+    except Exception as exc:
         logger.exception("LLM streaming failed")
+        # 把"为什么没回复"送到页面上：live 模式没有别的错误通道，
+        # 只落日志的话用户看到的就是数字人装死。
+        text = str(exc) or exc.__class__.__name__
+        if "LLM_API_KEY is not configured" in text:
+            friendly = "还没有配置模型 Key：请在数字人页「模型 Key」里填入 API Key，保存后再试一次"
+        else:
+            friendly = f"回复生成失败：{text[:120]}"
+        if on_error is not None:
+            try:
+                on_error(friendly)
+            except Exception:
+                logger.exception("[Reply] on_error 回调失败")
     finally:
         close = getattr(text_stream, "close", None)
         if close is not None:

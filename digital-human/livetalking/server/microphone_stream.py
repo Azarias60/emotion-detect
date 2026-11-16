@@ -11,6 +11,7 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from difflib import SequenceMatcher
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -373,6 +374,8 @@ class MicrophoneConnection:
         self._turns_since_action = 0
         self._last_emotion = "neutral"
         self._last_action_emotion = ""
+        # 连续空转写计数：商用话术阶梯（1 次常规提示 / 2 次靠近慢说 / 3+ 次查权限设备）
+        self._empty_transcript_streak = 0
         # 最近一帧 PCM 到达时刻（断流自愈用）
         self._last_pcm_at: float | None = None
         # 导览页刚发出的模块推荐（等用户一句「好/可以」确认跳转）
@@ -622,6 +625,18 @@ class MicrophoneConnection:
         }.get(key, "")
         return f"用户当前情绪：{label}（连续 {n} 句）。{tip}"
 
+    def _error_emitter(self, generation: int):
+        """把"回复生成为什么失败"送到页面：live 模式没有别的错误通道，
+        不送的话用户只看到数字人不说话，分不清是没配 Key 还是网络问题。"""
+        def on_error(text: str) -> None:
+            self._emit_from_thread(
+                "json",
+                {"type": "error", "message": text, "mode": "live"},
+                generation,
+            )
+
+        return on_error
+
     def _doc_emitter(self, generation: int):
         """Forward [DOC: ...] tags found in the reply stream to the live UI."""
         def on_doc(doc: dict) -> None:
@@ -850,6 +865,8 @@ class MicrophoneConnection:
             # 只能盲猜措辞被识别成了什么（2026-10-24 连续两次排查都卡在这里）
             if transcript:
                 logger.info("[Turn] 转写: %r", transcript)
+                # 转出字了＝麦克风和 ASR 都是好的，空转写阶梯从头计
+                self._empty_transcript_streak = 0
             if generation != self.generation or not transcript:
                 # 关键：清掉本轮登记——空转写的 early-return 若留着 pending，
                 # 下一句话会被 speech_started 折回机制拼上这段无效音频，
@@ -866,6 +883,24 @@ class MicrophoneConnection:
                         "[Turn] 空转写（音频 %.2fs，RMS %.3f）→ 提示重说",
                         len(audio) / 16000.0, rms,
                     )
+                    # 现场留存（最多 20 份）：空转写的音频落盘成 wav，
+                    # "又不行了"时拿来离线复转写，直接分辨是音频坏还是 ASR 坏
+                    try:
+                        dump_dir = Path(__file__).resolve().parents[1] / "runs" / "debug_turns"
+                        dump_dir.mkdir(parents=True, exist_ok=True)
+                        import wave as _wave
+                        stamp = time.strftime("%H%M%S")
+                        path = dump_dir / f"empty_{stamp}_{len(audio)}.wav"
+                        with _wave.open(str(path), "wb") as w:
+                            w.setnchannels(1)
+                            w.setsampwidth(2)
+                            w.setframerate(PCM_SAMPLE_RATE)
+                            w.writeframes(audio.astype("<i2").tobytes())
+                        for old in sorted(dump_dir.glob("empty_*.wav"))[:-20]:
+                            old.unlink(missing_ok=True)
+                        logger.info("[Turn] 空转写音频已留存: %s", path.name)
+                    except Exception:
+                        logger.exception("[Turn] 空转写音频留存失败")
                     # 连续对话里偶尔没听清是常态，不该走 error；用轻提示让用户
                     # 自然再说一次。**播报中静默丢弃**：此时段的空音频几乎都是
                     # 麦克风收回的回复回声（实测问候播报期间连续 4 条空转写
@@ -876,11 +911,29 @@ class MicrophoneConnection:
                     # "识别到环境音"）。
                     if not (self._avatar_speaking() or self._default_reply_active()):
                         short_noise = len(audio) < PCM_SAMPLE_RATE * 1.2
-                        await self._emit({
-                            "type": "hint",
-                            "message": "" if short_noise else "没听清，请再说一次",
-                            "quiet": short_noise,
-                        })
+                        if short_noise:
+                            await self._emit({
+                                "type": "hint",
+                                "message": "",
+                                "quiet": short_noise,
+                            })
+                        else:
+                            # 商用话术阶梯（2026-11-14）：同一句"没听清"连说
+                            # 五遍用户会以为系统坏了——第 2 次起换引导话术，
+                            # 第 3 次起提示查权限/设备；转写成功即清零
+                            self._empty_transcript_streak += 1
+                            streak = self._empty_transcript_streak
+                            if streak <= 1:
+                                not_heard = "没听清，请再说一次"
+                            elif streak == 2:
+                                not_heard = "还是没听清，请靠近麦克风、放慢语速再说一次"
+                            else:
+                                not_heard = "一直没听清，请检查浏览器麦克风权限，或换个麦克风设备试试"
+                            await self._emit({
+                                "type": "hint",
+                                "message": not_heard,
+                                "quiet": False,
+                            })
                 return
             # 环境音/语气词筛选（2026-10-25 用户反馈）：转写只剩 0~1 个有效字
             # （"嗯。""啊。""呃。"）且音频不足 1.2s＝噪声或无意义语气词——
@@ -1087,6 +1140,7 @@ class MicrophoneConnection:
                     on_text=on_text,
                     should_stop=should_stop,
                     on_doc=self._doc_emitter(generation),
+                    on_error=self._error_emitter(generation),
                     context_note=self._emotion_note,
                     persona_override=self.persona_override,
                     auto_doc=self.persona_override != "guide",
@@ -1519,8 +1573,11 @@ class MicrophoneConnection:
             self.wake.open(self.mode)
             await self._emit({"type": "awake", "mode": self.mode})
         elif event_type == "reset":
-            # 用户刷新口令/重新开始：清空情绪、推荐、会话记忆
-            await self._reset_session()
+            # 用户刷新口令/重新开始：清空情绪、推荐、会话记忆。
+            # keep_awake=true＝空闲自动刷新（前端 3 分钟无对话定时器）：
+            # 会话数据照常归零但**不重新武装唤醒门**——陪伴页麦克风常开，
+            # 刷新后用户直接开口就该有回应，不能逼着再喊一次"你好"。
+            await self._reset_session(keep_awake=bool(data.get("keep_awake")))
         elif event_type == "speak":
             # 预置播报（不调 LLM、不写记忆）：如检测结果回读
             text = str(data.get("text", "")).strip()
@@ -1539,6 +1596,7 @@ class MicrophoneConnection:
                     on_text=on_text,
                     should_stop=should_stop,
                     on_doc=self._doc_emitter(self.generation),
+                    on_error=self._error_emitter(self.generation),
                     context_note="",
                     persona_override=self.persona_override,
                     auto_doc=self.persona_override != "guide",
@@ -1618,6 +1676,7 @@ class MicrophoneConnection:
                         on_text=on_text,
                         should_stop=should_stop,
                         on_doc=self._doc_emitter(generation),
+                        on_error=self._error_emitter(generation),
                         context_note=self._emotion_note,
                         persona_override=self.persona_override,
                         auto_doc=self.persona_override != "guide",

@@ -6,23 +6,16 @@ from pathlib import Path
 from utils.logger import logger
 
 from services.llm_memory import strip_leading_tag
+from services.llm_settings import effective as effective_llm, is_local_endpoint
 
 
 ALLOWED_ACTIONS = {"greet", "encourage", "praise", "comfort", "idle"}
 
 # 进程级客户端复用：每轮对话新建 OpenAI 客户端会丢掉连接池，首字延迟里
 # 白白多出一次 TLS/TCP 握手（实测百毫秒量级）。客户端本身线程安全。
+# 缓存键含 (api_key, base_url)：页面改了 key 自然换新客户端，旧的不再复用。
 _CLIENTS: dict[tuple[str, str], object] = {}
 _CLIENTS_LOCK = threading.Lock()
-
-# 本地/自建推理端点（Ollama、LM Studio、vLLM、llama.cpp server…）通常不需要
-# API key，但 openai 客户端要求非空字符串。这些主机名一律给占位符放行。
-_LOCAL_HOSTS = ("localhost", "127.0.0.1", "0.0.0.0", "[::1]", "host.docker.internal")
-
-
-def is_local_endpoint(base_url: str | None) -> bool:
-    url = (base_url or "").lower()
-    return any(host in url for host in _LOCAL_HOSTS)
 
 
 def _shared_client(api_key: str, base_url: str | None):
@@ -43,9 +36,11 @@ def _shared_client(api_key: str, base_url: str | None):
 class LLMService:
     def __init__(self, opt):
         self.opt = opt
-        base_url = getattr(opt, "llm_base_url", None)
+        # 每轮新建 → 构造时读一次生效配置：页面「模型 Key」保存后下一句就生效
+        # （不用重启引擎，也不用断开正在进行的会话）
+        api_key, base_url, model = effective_llm(opt)
+        self.model = model
         self._local = is_local_endpoint(base_url)
-        api_key = getattr(opt, "llm_api_key", "") or ""
         if not api_key:
             # 空 key 时 openai 客户端**建都建不起来**（OpenAIError:
             # Missing credentials），那样报错在构造期就炸，提示也难懂。
@@ -53,6 +48,7 @@ class LLMService:
             # 它会在真正要发请求时给出"LLM_API_KEY is not configured"。
             api_key = "local-no-key" if self._local else "missing-api-key"
         self.client = _shared_client(api_key, base_url)
+        self._base_url = base_url
 
     def stream_text(self, message: str, system_prompt: str | None = None, memory=None):
         """流式生成回复。
@@ -76,7 +72,7 @@ class LLMService:
         for attempt in range(3):
             try:
                 response = self.client.chat.completions.create(
-                    model=self.opt.llm_model,
+                    model=self.model,
                     messages=messages,
                     stream=True,
                 )
@@ -117,7 +113,7 @@ class LLMService:
     def generate_childcare_reply(self, message: str, prompt_text: str) -> dict:
         self._ensure_api_key()
         request_kwargs = {
-            "model": self.opt.llm_model,
+            "model": self.model,
             "messages": [
                 {"role": "system", "content": prompt_text},
                 {"role": "user", "content": message},
@@ -147,10 +143,14 @@ class LLMService:
         return ""
 
     def _ensure_api_key(self):
-        # 本地端点（Ollama 等）不需要 key，放行
-        if getattr(self.opt, "llm_api_key", "") or getattr(self, "_local", False):
+        # 每轮重新读生效配置：页面中途重新配了 key 也能立刻用上。
+        # 本地端点（Ollama 等）不需要 key，放行。
+        key, _, _ = effective_llm(self.opt)
+        if key or self._local:
             return
-        raise ValueError("LLM_API_KEY is not configured")
+        raise ValueError(
+            "LLM_API_KEY is not configured：请在数字人页「模型 Key」里填入 API Key"
+        )
 
     def _parse_json_payload(self, raw_content: str) -> dict:
         raw_content = (raw_content or "").strip()

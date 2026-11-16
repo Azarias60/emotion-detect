@@ -70,6 +70,8 @@ Emotion-Detect-py/data/
 digital-human/livetalking/data/avatars/
 digital-human/livetalking/data/uploads/
 digital-human/livetalking/data/drop/
+# 页面「模型 Key」写入的运行时配置（含 key，绝不入库）
+digital-human/livetalking/data/llm_config.json
 digital-human/livetalking/runs/
 digital-human/runs/
 
