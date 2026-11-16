@@ -1,4 +1,5 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
+import { TEXTS } from './texts'
 
 /**
  * LiveTalking 实时数字人客户端（引擎本体在 digital-human/livetalking/，默认服务端口 8020）。
@@ -77,6 +78,18 @@ export function useLiveTalking() {
   let awakeActive = false        // 唤醒闸是否被显式打开（手动点麦克风）
   let everWoke = false           // 引擎是否确认过唤醒（wake 事件）：configure 补发时据此重开闸
   let reconnectTimer = null
+  // ── 空闲自动刷新（2026-11-14 用户要求）────────────────────────────
+  // 3 分钟没有任何对话活动（引擎事件停流）→ 请引擎软重置并清空对话框。
+  // "说你好就刷新"走引擎裸问候软重置（session_reset），已在，无需额外处理。
+  const IDLE_REFRESH_MS = 3 * 60 * 1000
+  let lastActivityAt = 0
+  let idleTimer = null
+  // 抢话打断待确认标记：speech_started（播报中）置位，转写到达时给
+  // "好的，你说"确认后清掉；会话重置/出错时也要清，防串到下一轮
+  let bargeInPending = false
+  // 冷启动等待标记：readiness 探针碰到"未就绪"即置位，boot 时据此给
+  // "数字人已就绪"的交付提示（没等过就不打扰）
+  let waitedEngineReady = false
   let reconnectAttempts = 0
   let gestureResumeArmed = false
 
@@ -152,6 +165,7 @@ export function useLiveTalking() {
     stopSegmentPolling()
     stopAutoTryPlay()
     stopCtxKeepAlive()
+    disarmIdleWatch()
     try {
       ws?.close()
     } catch {}
@@ -214,10 +228,12 @@ export function useLiveTalking() {
         if (canWrite) connectionDetail.value = '服务就绪，正在建立实时通道…'
         return true
       }
-      if (canWrite) connectionDetail.value = '数字人模型加载中（首次约半分钟）…'
+      waitedEngineReady = true
+      if (canWrite) connectionDetail.value = TEXTS.engineLoading
     } catch {
       serviceReady.value = false
-      if (canWrite) connectionDetail.value = '数字人服务暂时没连上，请稍等几秒后重试；若多次失败请联系管理员'
+      waitedEngineReady = true
+      if (canWrite) connectionDetail.value = TEXTS.engineUnreachable
     }
     return false
   }
@@ -237,6 +253,11 @@ export function useLiveTalking() {
       await loadAssets()
       if (!currentAvatar.value && assets.value?.defaultAvatar) {
         currentAvatar.value = assets.value.defaultAvatar
+      }
+      // 等过冷启动的用户给一条明确的"就绪了"（商用惯例：等待结束要有交付感）
+      if (waitedEngineReady) {
+        waitedEngineReady = false
+        pushMessage('action', TEXTS.engineReady)
       }
       connect()
     }
@@ -398,6 +419,31 @@ export function useLiveTalking() {
   }
 
   // ---------- 对话 WebSocket ----------
+  function touchActivity() {
+    lastActivityAt = Date.now()
+  }
+
+  function armIdleWatch() {
+    touchActivity()
+    if (idleTimer) return
+    idleTimer = setInterval(() => {
+      if (Date.now() - lastActivityAt < IDLE_REFRESH_MS) return
+      // 没聊过天（面板为空）就没什么可刷的；通道不在也不要发
+      if (!messages.value.length || !ws || ws.readyState !== 1) return
+      // keep_awake：陪伴页麦克风常开，刷新后直接开口就该有回应，
+      // 不能逼着再喊一次"你好"
+      ws.send(JSON.stringify({ type: 'reset', keep_awake: true }))
+      touchActivity() // 引擎没回 session_reset 也不每 15s 重复轰炸
+    }, 15000)
+  }
+
+  function disarmIdleWatch() {
+    if (idleTimer) {
+      clearInterval(idleTimer)
+      idleTimer = null
+    }
+  }
+
   function openSocket() {
     if (ws && ws.readyState <= 1) return
     const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
@@ -410,10 +456,12 @@ export function useLiveTalking() {
       const cfg = { type: 'configure', mode: 'live', sessionid: sessionId.value }
       if (personaId) cfg.persona = personaId
       ws.send(JSON.stringify(cfg))
+      armIdleWatch()
     })
     ws.addEventListener('message', onSocketMessage)
     ws.addEventListener('close', () => {
       ws = null
+      disarmIdleWatch()
       if (listening.value) {
         listening.value = false
         stopMicTracks()
@@ -434,14 +482,14 @@ export function useLiveTalking() {
         }, Math.min(800 * ++reconnectAttempts, 5000))
       } else if (connection.value === 'connected') {
         // 用户主动关麦后的掉线：WebRTC 画面还在，保留 connected 只提示
-        connectionDetail.value = '对话通道已断开（麦克风未开），点麦克风按钮恢复'
+        connectionDetail.value = TEXTS.connLost
       }
     })
     ws.addEventListener('error', () => {
       // error 之后必然紧跟 close：不在这里翻脸，交给 close 的重连逻辑，
       // 否则自动重连成功后 UI 永远停在"通话通道断开"
       if (connection.value === 'connected') {
-        connectionDetail.value = '对话通道波动，正在自动恢复…'
+        connectionDetail.value = TEXTS.connFlaky
       }
     })
   }
@@ -449,6 +497,9 @@ export function useLiveTalking() {
   function onSocketMessage(message) {
     if (typeof message.data === 'string') {
       engineEvents.value += 1
+      // 每条引擎事件都算"对话活动"（转写/回复/提示/状态……），
+      // 空闲刷新定时器靠它判断"3 分钟没有任何动静"
+      touchActivity()
       try {
         handleEvent(JSON.parse(message.data))
       } catch {}
@@ -457,8 +508,8 @@ export function useLiveTalking() {
     // 二进制 PCM 只在 default 模式（浏览器本地播放）使用；实时模式语音走 WebRTC，忽略
   }
 
-  function pushMessage(role, content) {
-    const message = { role, content }
+  function pushMessage(role, content, extra) {
+    const message = { role, content, ...(extra || {}) }
     messages.value.push(message)
     // 超长会话从头截断：存消息对象引用而不是下标，截断后旧索引会整体前移
     // 导致转写写进别人的气泡（2026-11-13 修复）
@@ -480,7 +531,7 @@ export function useLiveTalking() {
         if (micDesired && !listening.value) void ensureMicOpen(false)
         break
       case 'hint':
-        // 轻提示（如"没听清"）：不改连接/说话状态，只给一条灰字
+        // 轻提示（如"没听清"话术阶梯）：不改连接/说话状态，只给一条灰字
         if (event.message) pushMessage('action', event.message)
         break
       case 'awake':
@@ -488,11 +539,11 @@ export function useLiveTalking() {
         break
       case 'wake_word_pending':
         // 连接后 connectionDetail 没有展示位，引导类文案直接进消息流，用户看得见
-        pushMessage('action', `说「${event.wakeWord || '你好'}」唤醒数字人`)
+        pushMessage('action', TEXTS.wakeHint(event.wakeWord))
         break
       case 'wake':
         everWoke = true
-        pushMessage('action', '已唤醒，请直接说')
+        pushMessage('action', TEXTS.awake)
         break
       case 'emotion': {
         emotion.value = {
@@ -531,6 +582,9 @@ export function useLiveTalking() {
         // 导致每句话开头都多打一次 /interrupt_talk，播报切换处有轻微卡顿）。
         if (speaking.value || busy.value) {
           interrupt('user')
+          // 记住这次是"打断数字人"：转写回来时给一句确认（商用惯例——
+          // 被打断的通话对方会立即闭嘴并示意"你说"），用户才知道插话生效了
+          bargeInPending = true
         }
         busy.value = true
         speaking.value = false
@@ -546,6 +600,12 @@ export function useLiveTalking() {
         if (event.stage === 'llm') pipeline.value = 2
         break
       case 'transcript': {
+        // 打断确认：这次转写来自"插话打断数字人"→ 先给一句"好的，你说"，
+        // 用户明确知道打断生效了（无此提示时用户不确定插话有没有被接收）
+        if (bargeInPending) {
+          bargeInPending = false
+          pushMessage('action', TEXTS.bargeIn)
+        }
         // 同一轮可能补发更全的识别结果：一律覆盖待定用户气泡，不堆叠
         // （live 模式没有 response_done，索引在 response_accepted/interrupt 时清）
         if (userBubble) {
@@ -572,7 +632,7 @@ export function useLiveTalking() {
         connectionDetail.value = '数字人正在说话…'
         break
       case 'tts_fallback':
-        pushMessage('action', '在线语音暂不可用，本段改用系统语音')
+        pushMessage('action', TEXTS.ttsFallback)
         break
       case 'action':
         pushMessage('action', `动作 · ${event.action}`)
@@ -603,13 +663,17 @@ export function useLiveTalking() {
         emotion.value = null
         recommendation.value = null
         docCard.value = null
-        pushMessage('action', '会话已重新开始，我们重新聊')
+        bargeInPending = false
+        pushMessage('action', TEXTS.sessionReset)
         break
       case 'error':
         busy.value = false
         speaking.value = false
         pipeline.value = 0
-        pushMessage('action', event.message || '处理失败')
+        bargeInPending = false
+        // 错误消息带"重试"操作（商用惯例：错误必须给下一步动作）——
+        // 角色设为 error，面板渲染成红字 + 重试按钮（接 retry()）
+        pushMessage('error', event.message || '处理失败', { retry: true })
         connectionDetail.value = event.message || '处理失败'
         break
     }
@@ -648,7 +712,7 @@ export function useLiveTalking() {
           speaking.value = false
           busy.value = false
           pipeline.value = 0
-          connectionDetail.value = '待命中，说说话或输入文字都可以'
+          connectionDetail.value = TEXTS.idleWaiting
           stopSpeakingWatch()
         }
       } catch {}
@@ -875,10 +939,20 @@ export function useLiveTalking() {
         awakeActive = micOpeningAwake
         if (micOpeningAwake && ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'awake' }))
         connectionDetail.value = micOpeningAwake
-          ? '麦克风已开启，说完停顿约 0.85 秒自动识别'
-          : '麦克风已开启，说「你好」唤醒数字人'
+          ? TEXTS.micOpenAwake
+          : TEXTS.micOpenWithWake
       } catch (err) {
-        if (!disposed) pushMessage('action', `麦克风开启失败：${err.message || err}`)
+        if (disposed) return
+        // 商用惯例：按错误类型给"下一步动作"文案，不裸抛错误名。
+        // NotAllowed=权限被拒 / NotReadable=设备被占用（多标签页）/
+        // NotFound=没有设备 / 其余=通用重试
+        const name = err?.name || ''
+        let why = TEXTS.micGeneric
+        if (name === 'NotAllowedError' || name === 'SecurityError') why = TEXTS.micDenied
+        else if (name === 'NotReadableError' || name === 'TrackStartError') why = TEXTS.micBusy
+        else if (name === 'NotFoundError' || name === 'DevicesNotFoundError' || name === 'OverconstrainedError') why = TEXTS.micMissing
+        pushMessage('error', why, { retry: true, retryKind: 'mic' })
+        connectionDetail.value = why
       } finally {
         micOpening = null
       }
@@ -893,7 +967,7 @@ export function useLiveTalking() {
       if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'cancel' }))
       listening.value = false
       stopMicTracks()
-      connectionDetail.value = '麦克风已关闭'
+      connectionDetail.value = TEXTS.micClosed
       return
     }
     micDesired = true

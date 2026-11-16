@@ -569,7 +569,17 @@ watch(
                 和数字人开始聊天吧
               </div>
               <div v-for="(msg, i) in messages" :key="i" class="message" :class="msg.role">
-                <template v-if="msg.role !== 'action'">
+                <!-- 错误消息：红字 + 下一步操作按钮（商用惯例——错误必须给出口） -->
+                <template v-if="msg.role === 'error'">
+                  <em class="error-text">{{ msg.content }}</em>
+                  <button
+                    class="retry-inline"
+                    @click="msg.retryKind === 'mic' ? toggleMic() : retry()"
+                  >
+                    {{ msg.retryKind === 'mic' ? '去开麦克风' : '重试' }}
+                  </button>
+                </template>
+                <template v-else-if="msg.role !== 'action'">
                   <span class="avatar">{{ msg.role === 'assistant' ? 'AI' : '我' }}</span>
                   <p>{{ msg.content }}</p>
                 </template>
@@ -1467,6 +1477,17 @@ watch(
   gap: 10px;
   max-width: 100%;
   align-items: flex-end;
+}
+/* 错误消息（role=error）：红字 + 行内"重试"操作，一眼看出坏了且知道下一步 */
+.message.error {
+  flex-wrap: wrap;
+  align-items: center;
+  color: #ff8a8a;
+  font-size: 13px;
+}
+.message.error .error-text {
+  font-style: normal;
+  line-height: 1.5;
 }
 .message > .avatar {
   flex: none;

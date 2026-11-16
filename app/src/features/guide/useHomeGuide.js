@@ -186,6 +186,23 @@ function createHomeGuide() {
     window.addEventListener('beforeunload', teardown)
     turnWatchTimer = setInterval(() => {
       if (disposed) return
+      // ── 空闲自动刷新（2026-11-14 用户要求，与情感数字人页同契约）──
+      // 3 分钟没有任何对话事件且识别面板非空 → 请引擎软重置清空面板。
+      // keep_awake=true：常听模式刷新后直接开口就该有回应，不再喊"你好"。
+      // 必须排在话轮看门狗前面：空闲时 busy/talking 都是 false，看门狗
+      // 会提前 return，永远轮不到下面的逻辑。
+      if (
+        Date.now() - lastWsActivityAt >= 3 * 60 * 1000 &&
+        heardLog.value.length &&
+        ws &&
+        ws.readyState === 1
+      ) {
+        lastWsActivityAt = Date.now()
+        try {
+          ws.send(JSON.stringify({ type: 'reset', keep_awake: true }))
+        } catch {}
+        return
+      }
       if (!(busy.value || talking.value)) return
       if (Date.now() - lastWsActivityAt < 45000) return
       lastWsActivityAt = Date.now()
