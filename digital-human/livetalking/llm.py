@@ -370,7 +370,7 @@ def llm_response(
         # 只落日志的话用户看到的就是数字人装死。
         text = str(exc) or exc.__class__.__name__
         if "LLM_API_KEY is not configured" in text:
-            friendly = "还没有配置模型 Key：请在数字人页「模型 Key」里填入 API Key，保存后再试一次"
+            friendly = "还没有配置模型 Key：请在「当前账号」页的「模型 Key」里填入 API Key，保存后再试一次"
         else:
             friendly = f"回复生成失败：{text[:120]}"
         if on_error is not None:

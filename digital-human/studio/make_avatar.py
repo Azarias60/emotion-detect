@@ -483,7 +483,10 @@ def base_quality_loop(name: str, stage_dir: Path, prog: Progress, segs,
              "--force-rate", "25", "--out-fps", "25",
              "--workflow-dir", str(sub_wf)])
         _verify_scail_fps(sub_wf, bad_segs, expect=25, seed=new_seed)
-        run(["studio/regen_scail.py", "collect", "--run", sub_run, "--timeout", "21600"])
+        # 超时按队列深度动态放大：写死 6 小时在队列被堵时会让重掷任务
+        # 永远轮不到就超时（与 scail_heal 同款死循环，2026-11-20 修复）
+        run(["studio/regen_scail.py", "collect", "--run", sub_run,
+             "--timeout", str(_queue_wait_minutes() * 60)])
         # 重掷段强制采用新产出（不参与比选）——旧段是已知不合格的，选回去
         # 重掷就白做了；门限下一轮会重新检测这一版
         stage_select(name, prog, segs, force_new=set(bad_segs))
@@ -535,6 +538,58 @@ def gate_transitions(stage_dir: Path, peak_gate: float = 10.0):
     return bad
 
 
+def _drop_queued(pids: list[str]) -> int:
+    """把仍在 ComfyUI pending 队列里的旧任务删掉（重掷前腾位）。
+
+    ComfyUI 的 /queue POST {"delete":[prompt_id]} 只删未执行项；已执行/已丢失
+    的 pid 返回后自动忽略。返回删除数（仅日志用）。"""
+    import urllib.request
+
+    try:
+        from generation import config
+        server = config.SERVER
+    except Exception:
+        return 0
+    try:
+        q = json.load(urllib.request.urlopen(server + "/queue", timeout=30))
+    except Exception:
+        return 0
+    pending = [it[1] for it in q.get("queue_pending", [])
+               if isinstance(it, (list, tuple)) and len(it) > 1]
+    to_delete = [pid for pid in pids if pid in pending]
+    if not to_delete:
+        return 0
+    try:
+        req = urllib.request.Request(
+            server + "/queue",
+            data=json.dumps({"delete": to_delete}).encode("utf-8"),
+            method="POST", headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=30)
+        print(f"[自愈腾位] 已从 ComfyUI 队列删除旧任务 {len(to_delete)} 个：{to_delete}", flush=True)
+        return len(to_delete)
+    except Exception as error:
+        print(f"[自愈腾位] 删除旧队列任务失败（不影响重掷）：{error}", flush=True)
+        return 0
+
+
+def _queue_wait_minutes() -> int:
+    """按 ComfyUI 队列深度估算消化时间（分钟）：pending×60/段 + running 一段的余量。
+
+    实测口径：新面孔首跑单段 24~60 分钟（引擎同占显存时更慢）。collect 的
+    固定 6 小时窗 < 队列消化时间时，重掷任务永远轮不到就超时——死循环根因
+    （2026-11-20 实锤：missing.json 全是「collect 超时」，ComfyUI 0 失败）。
+    """
+    import urllib.request
+    try:
+        from generation import config
+        server = config.SERVER
+        q = json.load(urllib.request.urlopen(server + "/queue", timeout=30))
+        depth = len(q.get("queue_running", [])) + len(q.get("queue_pending", []))
+        return max(360, depth * 60 + 120)  # 每任务 60 分钟 + 2 小时余量，下限 6 小时
+    except Exception:
+        return 360  # 查不到就按原默认 6 小时
+
+
 def scail_heal(name: str, run_name: str, ref_path: Path, driver_dir: Path,
                prog: Progress, max_rounds: int = 2):
     """⑦ SCAIL 缺段自愈：collect 软失败后（runs/<run>/missing.json），只对仍无
@@ -575,6 +630,11 @@ def scail_heal(name: str, run_name: str, ref_path: Path, driver_dir: Path,
         for seg, seed in miss_pairs:
             by_seed.setdefault(seed + 100 * rnd, []).append(seg)
         new_runs = []
+        # 重掷前把旧 pid 的 pending 项从 ComfyUI 队列删除：它们就是要重掷的，
+        # 不删会堵在队尾，重掷任务排队时间超过 collect 窗口就死循环
+        _drop_queued([m["pid"] for rid in run_ids
+                      if (mp := ROOT / "runs" / rid / "missing.json").is_file()
+                      for m in json.loads(mp.read_text(encoding="utf-8"))])
         for new_seed, segs in sorted(by_seed.items()):
             sub_run = f"{run_name}_h{rnd}s{new_seed}"
             run(["studio/regen_scail.py", "submit",
@@ -583,9 +643,10 @@ def scail_heal(name: str, run_name: str, ref_path: Path, driver_dir: Path,
                  "--driver-dir", str(driver_dir)])
             new_runs.append(sub_run)
         heal_runs.extend(new_runs)
+        wait_min = _queue_wait_minutes()
         for sub_run in new_runs:
             run(["studio/regen_scail.py", "collect", "--run", sub_run,
-                 "--timeout", "21600"])
+                 "--timeout", str(wait_min * 60)])
 
 def _post_backend(path: str, backend_url: str, timeout: float = 30.0) -> dict | None:
     """调后端的引擎管理端点；失败返回 None（让位失败不阻断产线——最坏是
@@ -791,8 +852,11 @@ def main():
                  "--run", run_id, "--frames", "25", "--fps", "25", "--fast",
                  "--seed", str(seed), "--seg-dir", str(stage_dir),
                  "--recipe", "ltx_transition_neutral.json"])
+            # 超时按本轮待生成对数动态放大（每对实测 ~17 分钟 + 排队余量）：
+            # 写死 3 小时在全量 14 对时会提前判死，触发不必要的自愈循环
+            trans_wait = max(10800, len(todo) * 40 * 60)
             run(["studio/transition_queue.py", "collect", "--run", run_id,
-                 "--timeout", "10800", "--seg-dir", str(stage_dir)])
+                 "--timeout", str(trans_wait), "--seg-dir", str(stage_dir)])
             # 2026-11-09 用户拍板：模型出什么样就用什么样——光流修瞬移、剪尾段
             # 沉降、尖峰帧混合、腿部稳定全部撤掉。过渡有问题靠终检门重掷。
             # 终检门：尖峰>10 ∪ 黑帧/亮度崩塌（collect 内硬拦）∪ 定格超限 ∪ 仍缺失

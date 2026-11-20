@@ -82,6 +82,26 @@ def _live_pipeline_names() -> set[str]:
     一次 CIM 查询覆盖所有候选，避免每个任务各查一遍。
     查询失败（极端情况）返回空集合——此时宁可放行也不误拦。
     """
+    # 优先 psutil（毫秒级、无子进程）；PowerShell CIM 每次 1-2s，前端 5 秒一轮
+    # 轮询会把后端拖慢，且子进程偶发失败曾让 /jobs 整个 500（2026-11-19 实测）
+    try:
+        import psutil
+    except ImportError:
+        psutil = None
+    if psutil is not None:
+        names: set[str] = set()
+        try:
+            for proc in psutil.process_iter(["cmdline"]):
+                cmd = " ".join(proc.info.get("cmdline") or [])
+                if "make_avatar.py" not in cmd:
+                    continue
+                m = re.search(r"--name\s+([A-Za-z0-9_]+)", cmd)
+                if m:
+                    names.add(m.group(1))
+        except Exception:
+            return set()   # 宁可放行也不误拦
+        return names
+
     ps = (
         "Get-CimInstance Win32_Process | "
         "Where-Object { $_.CommandLine -match 'make_avatar.py' } | "
@@ -89,7 +109,7 @@ def _live_pipeline_names() -> set[str]:
     )
     try:
         out = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
-                             capture_output=True, text=True, timeout=45).stdout
+                             capture_output=True, text=True, timeout=45).stdout or ""
     except Exception:
         return set()
     names = set()
@@ -98,6 +118,34 @@ def _live_pipeline_names() -> set[str]:
         if m:
             names.add(m.group(1))
     return names
+
+
+def _collect_note(data: dict) -> str | None:
+    """读 SCAIL/过渡 collect 的分段进度 sidecar（runs/<ascii>_*/collect_progress.json）。
+
+    生成动作段一跑 2~4 小时，主 progress.json 只在阶段边界更新——前端会看到
+    冻结的百分比以为卡死（2026-11-20 实测）。sidecar 由 regen_scail/
+    transition_queue 的 collect 循环每产出一段就写一份，这里合并进 message。
+    """
+    try:
+        ascii_id = str(data.get("job_id") or "")
+        if not ascii_id:
+            return None
+        best = None
+        for mp in (DH_ROOT / "runs").glob(f"{ascii_id}_*/collect_progress.json"):
+            try:
+                d = json.loads(mp.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            done, total = int(d.get("done", 0)), int(d.get("total", 0))
+            if total and (best is None or done > best[0]):
+                best = (done, total, d.get("stage"))
+        if not best or best[0] <= 0:
+            return None
+        label = "过渡" if best[2] == "transition" else "动作段"
+        return f"{label} {best[0]}/{best[1]} 已产出"
+    except Exception:
+        return None
 
 
 def _job_status(data: dict, live: set[str] | None = None) -> str:
@@ -109,7 +157,10 @@ def _job_status(data: dict, live: set[str] | None = None) -> str:
         return "completed" if data["ok"] else "failed"
     if live is None:
         live = _live_pipeline_names()
-    return "running" if data.get("name") in live else "interrupted"
+    # 进程命令行里的 --name 是 ASCII 任务名（progress.json 的 job_id）；
+    # name 是中文显示名，拿它比对永远不匹配 → 运行中会被误判"已中断"
+    ident = str(data.get("job_id") or data.get("name") or "")
+    return "running" if ident in live else "interrupted"
 
 
 def _preset_ids() -> set[str]:
@@ -364,7 +415,12 @@ async def job_status(job_id: str):
             return {"job_id": job_id, "status": "running", "stage": "准备中",
                     "stage_index": 0, "message": "任务已提交"}
         raise HTTPException(404, "任务不存在")
-    return {**data, "status": _job_status(data)}
+    status = _job_status(data)
+    if status == "running" and data.get("stage") in ("生成动作段", "生成过渡"):
+        note = _collect_note(data)
+        if note:
+            data["message"] = f"{data.get('message', '')}（{note}）".strip("（）")
+    return {**data, "status": status}
 
 
 @router.get("/dh/avatar/jobs")
@@ -378,10 +434,67 @@ async def job_list():
             data = _read_progress(path.parent.name)
             if data is None:
                 continue
+            # 先算状态再摘 job_id：_job_status 要用它对齐进程命令行里的 --name
+            status = _job_status(data, live)
+            if status == "running" and data.get("stage") in ("生成动作段", "生成过渡"):
+                note = _collect_note(data)
+                if note:
+                    data["message"] = f"{data.get('message', '')}（{note}）".strip("（）")
             data.pop("job_id", None)
-            data["status"] = _job_status(data, live)
+            data["status"] = status
             result.append({"job_id": path.parent.name, **data})
     return {"jobs": result}
+
+
+def _purge_comfyui_tasks(ascii_name: str) -> int:
+    """把某数字人任务残留在 ComfyUI 队列里的生成项清掉（取消后不再占 GPU）。
+
+    2026-11-20 实测：取消只杀了 make_avatar，ComfyUI pending 里排着的段
+    继续占 GPU 几小时。产出前缀固定为 scail2/<ascii>_，按它匹配。
+    """
+    import urllib.request
+
+    try:
+        from generation import config as comfy_config
+        server = comfy_config.SERVER
+    except Exception:
+        return 0
+    tag = f"scail2/{ascii_name}_"
+    try:
+        q = json.load(urllib.request.urlopen(server + "/queue", timeout=30))
+    except Exception:
+        return 0
+    pids: list[str] = []
+    interrupt_running = False
+    for state in ("queue_running", "queue_pending"):
+        for item in q.get(state, []):
+            try:
+                text = json.dumps(item[2], ensure_ascii=False)
+            except Exception:
+                continue
+            if tag in text:
+                if len(item) > 1:
+                    pids.append(str(item[1]))
+                if state == "queue_running":
+                    interrupt_running = True
+    if not pids and not interrupt_running:
+        return 0
+    try:
+        if interrupt_running:
+            urllib.request.urlopen(urllib.request.Request(
+                server + "/interrupt", data=b"", method="POST"), timeout=30)
+        if pids:
+            req = urllib.request.Request(
+                server + "/queue",
+                data=json.dumps({"delete": pids}).encode("utf-8"),
+                method="POST", headers={"Content-Type": "application/json"})
+            urllib.request.urlopen(req, timeout=30)
+        logger.info("ComfyUI 队列已清理 ascii=%s 剩余项=%s 打断运行中=%s",
+                    ascii_name, len(pids), interrupt_running)
+        return len(pids)
+    except Exception as error:
+        logger.warning("ComfyUI 队列清理失败（不影响删除本身）：%s", error)
+        return 0
 
 
 @router.delete("/dh/avatar/jobs/{job_id}")
@@ -396,12 +509,51 @@ async def job_delete(job_id: str):
         raise HTTPException(404, "任务不存在")
     meta = _JOBS.pop(job_id, None)
     proc = meta.get("proc") if meta else None
+    killed_here = False
     if proc is not None and proc.poll() is None:
         proc.terminate()
         try:
             proc.wait(timeout=10)
         except Exception:
             proc.kill()
+        killed_here = True
         logger.info("制作任务已取消 job_id=%s", job_id)
+    # 后端重启过的话 _JOBS 已空（内存表），按命令行里任务目录路径兜底搜进程：
+    # make_avatar 的 --photo/--progress-json 都含 uploads/<job_id>，重启后
+    # 取消按钮此前只会删目录不杀进程——任务继续占 GPU 跑到天荒地老
+    # （2026-11-20 实测：DELETE 返回 cancelled:false，9 个残留进程）。
+    ascii_name = ""
+    try:
+        pj = job_dir / "progress.json"
+        if pj.is_file():
+            ascii_name = str(json.loads(pj.read_text(encoding="utf-8")).get("job_id") or "")
+    except Exception:
+        ascii_name = ""
+    try:
+        import psutil
+        marker = f"uploads{chr(92)}{job_id}{chr(92)}"
+        marker_alt = f"uploads/{job_id}/"
+        victims = []
+        for ps_proc in psutil.process_iter(["pid", "cmdline"]):
+            cmd = " ".join(ps_proc.info.get("cmdline") or [])
+            if "make_avatar.py" not in cmd:
+                continue
+            if marker in cmd or marker_alt in cmd:
+                victims.append(ps_proc)
+        for victim in victims:
+            try:
+                for child in victim.children(recursive=True):
+                    child.kill()
+                victim.kill()
+            except Exception:
+                pass
+        if victims:
+            killed_here = True
+            logger.info("制作任务已取消（按命令行兜底） job_id=%s pids=%s",
+                        job_id, [v.info["pid"] if hasattr(v, "info") else 0 for v in victims])
+    except Exception:
+        logger.exception("取消任务的进程兜底搜索失败（目录仍会删除）")
+    if ascii_name:
+        _purge_comfyui_tasks(ascii_name)
     shutil.rmtree(job_dir, ignore_errors=True)
-    return {"deleted": job_id, "cancelled": bool(proc is not None)}
+    return {"deleted": job_id, "cancelled": bool(killed_here)}

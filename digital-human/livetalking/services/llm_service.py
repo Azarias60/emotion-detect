@@ -149,7 +149,7 @@ class LLMService:
         if key or self._local:
             return
         raise ValueError(
-            "LLM_API_KEY is not configured：请在数字人页「模型 Key」里填入 API Key"
+            "LLM_API_KEY is not configured：请在「当前账号」页的「模型 Key」里填入 API Key"
         )
 
     def _parse_json_payload(self, raw_content: str) -> dict:

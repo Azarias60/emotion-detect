@@ -1180,6 +1180,18 @@ class MicrophoneConnection:
                 await self._emit(
                     {"type": "error", "message": "回复超时了，请再问一次"}
                 )
+        except Exception as exc:
+            # 非超时失败（没配 Key / 鉴权失败 / 网络）：live 模式有 on_error，
+            # 这里也要把原因送到页面——task 异常静默吞掉的话导览页就"没反应"
+            logger.exception("[DefaultReply] 回复生成失败")
+            self._cancel_current_response()
+            if not self.closed.is_set():
+                text = str(exc) or exc.__class__.__name__
+                if "LLM_API_KEY is not configured" in text:
+                    friendly = "还没有配置模型 Key：请在「当前账号」页的「模型 Key」里填入 API Key，保存后再试一次"
+                else:
+                    friendly = f"回复生成失败：{text[:160]}"
+                await self._emit({"type": "error", "message": friendly})
 
     def _make_default_tts(self):
         """Voice engine for the WS 直发链路（导览页 + 轻量默认页）.

@@ -222,6 +222,19 @@ def cmd_collect(args):
     started = {}   # pid -> 首次观察到 running 的时刻（看门狗计时基准）
     failed = {}    # seg_sN -> 失败原因
     deadline = time.time() + args.timeout
+
+    # 分段进度落盘：生成动作段要 2~4 小时，只有这份文件能让前端看到
+    # "动作段 3/7 已产出"而不是一条冻结的百分比（2026-11-20 补）
+    def _write_collect_progress():
+        try:
+            (run_dir / "collect_progress.json").write_text(
+                json.dumps({"done": len(mapping) - len(pending) - len(failed),
+                            "total": len(mapping)}, ensure_ascii=False),
+                encoding="utf-8")
+        except Exception:
+            pass
+
+    _write_collect_progress()
     while pending and time.time() < deadline:
         for key, info in list(pending.items()):
             # 只认这个任务自己的产出：history 精确 outputs；history 被清空才按
@@ -235,11 +248,13 @@ def cmd_collect(args):
                 miss = int(np.isnan(ws).sum())
                 print(f"[{key}] {src.name} 脸宽极差 {swing(ws):.1f}% 漏检{miss}", flush=True)
                 del pending[key]
+                _write_collect_progress()
                 continue
             reason = check_pid(info["pid"], started)
             if reason:
                 failed[key] = reason
                 del pending[key]
+                _write_collect_progress()
                 print(f"[{key}] 失败回收：{reason}", flush=True)
         if pending:
             time.sleep(60)

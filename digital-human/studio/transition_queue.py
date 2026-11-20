@@ -154,6 +154,17 @@ def cmd_collect(args):
     started = {}   # pid -> 首次观察到 running 的时刻（看门狗计时基准）
     failed = {}    # pair -> 失败原因（error / 看门狗 interrupt）
     deadline = time.time() + args.timeout
+
+    def _write_collect_progress():
+        try:
+            done = sum(1 for it in pending.values() if it.get("done"))
+            (run_dir / "collect_progress.json").write_text(
+                json.dumps({"done": done, "total": len(pending) or len(mapping),
+                            "stage": "transition"}, ensure_ascii=False),
+                encoding="utf-8")
+        except Exception:
+            pass
+
     while pending and time.time() < deadline:
         for name, info in list(pending.items()):
             # 只认本任务 history 报出的产出；绝不按固定 _00001_ 判断（旧文件
@@ -173,6 +184,8 @@ def cmd_collect(args):
                         failed[name] = (f"亮度异常（黑帧 {black}/{len(fr)}，"
                                         f"min={min(means):.1f} head={head:.1f} tail={tail:.1f}）")
                         del pending[name]
+                        info["done"] = True
+                        _write_collect_progress()
                         print(f"[{name}] 失败回收：{failed[name]}", flush=True)
                         continue
                     spike = max(cv2.absdiff(fr[i], fr[i + 1]).mean() for i in range(len(fr) - 1))
@@ -181,11 +194,15 @@ def cmd_collect(args):
                     shutil.copy2(src, dst)
                     print(f"[{name}] {len(fr)}帧 尖峰={spike:.2f}{warn} -> {dst.name}", flush=True)
                     del pending[name]
+                    info["done"] = True
+                    _write_collect_progress()
                     continue
             reason = check_pid(info["pid"], started)
             if reason:
                 failed[name] = reason
                 del pending[name]
+                info["done"] = True
+                _write_collect_progress()
                 print(f"[{name}] 失败回收：{reason}", flush=True)
         if pending:
             time.sleep(300)
