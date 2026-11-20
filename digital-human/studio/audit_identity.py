@@ -148,8 +148,39 @@ def main():
         refs[name] = mf
         print(f"参考 {name}: {len(faces)} 帧均值脸")
 
+    # 若预设参考人物（my_avatar/yy/guizi）不在磁盘上，自动从 data/avatars 里补充其他已上架人物
     if len(refs) < 2:
-        raise SystemExit("至少需要 2 个有效参考人物才能判身份")
+        avatars_root = ENGINE / "data" / "avatars"
+        if avatars_root.is_dir():
+            for av in sorted(avatars_root.iterdir()):
+                if not av.is_dir() or av.name in refs:
+                    continue
+                av_dir = av / "full_imgs"
+                if not av_dir.is_dir():
+                    continue
+                pngs = sorted(av_dir.glob("*.png"))
+                step = max(1, len(pngs) // REF_FRAMES)
+                faces = []
+                for p in pngs[::step][:REF_FRAMES]:
+                    img = cv2.imread(str(p))
+                    if img is None:
+                        continue
+                    rects = detector.get_detections_for_batch(np.array([img]))
+                    crop = face_crop(img, rects[0] if rects else None)
+                    if crop is not None:
+                        faces.append(norm_face(crop))
+                mf = mean_face(faces)
+                if mf is not None:
+                    refs[av.name] = mf
+                    print(f"参考 {av.name}（自动补充）: {len(faces)} 帧均值脸")
+                    if len(refs) >= 3:
+                        break
+
+    if len(refs) < 2:
+        print("只有不足 2 个有效参考人物，跳过跨人身份比对")
+        if args.out:
+            Path(args.out).write_text("[]", encoding="utf-8")
+        sys.exit(0)
 
     # ── 逐段审计 ──
     # 过渡段（名含 " to "）是两段的混合渐变，天然更像任何库里源人物——

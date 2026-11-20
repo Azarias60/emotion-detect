@@ -98,11 +98,20 @@ def stage_inspect(photo: Path, prog: Progress):
     sys.path.insert(0, str(ENGINE))
     from studio.qa_segments import load_detector
     det = load_detector()
-    r = det.get_detections_for_batch(np.array([img]))
+    # 高分辨率照片（如 4K/6K）直接送入 s3fd 会占用 8GB+ 内存并卡死数十分钟；
+    # 仅在体检检测时按比例缩放到长边 ≤1280，原图保持不变
+    det_img = img
+    det_w = w
+    if max(w, h) > 1280:
+        scale = 1280.0 / max(w, h)
+        det_w = max(1, int(round(w * scale)))
+        det_h = max(1, int(round(h * scale)))
+        det_img = cv2.resize(img, (det_w, det_h), interpolation=cv2.INTER_AREA)
+    r = det.get_detections_for_batch(np.array([det_img]))
     if not r or r[0] is None:
         raise RuntimeError("照片里没有检测到正脸——请换一张光线充足、正脸清晰的半身照")
     x1, y1, x2, y2 = r[0]
-    if (x2 - x1) < w * 0.08:
+    if (x2 - x1) < det_w * 0.08:
         raise RuntimeError("照片里的人脸太小——请离镜头近一些，拍半身照")
     return f"照片合格（{w}×{h}，已检出正脸）"
 
@@ -677,10 +686,13 @@ def _engine_yield(prog: "Progress", backend_url: str) -> bool:
 
 
 def _engine_restore(prog: "Progress", backend_url: str) -> None:
-    """恢复数字人引擎（finally 调用，失败只提示不抛）。"""
+    """恢复数字人引擎（finally 调用，失败只提示不抛）。
+
+    只负责拉起引擎，绝不写进度。这里曾经 prog.write(..., ok=True)——
+    会在产线失败（except 已写 ok=False）之后被 finally 覆盖成「完成」，
+    把真实失败吞掉（2026-11-20 e2e 实锤：任务显示完成但没上架）。"""
     data = _post_backend("/dh/engine/start", backend_url)
     if data and data.get("started"):
-        prog.write(TOTAL, "制作完成，数字人引擎恢复中（约 1 分钟后可对话）", ok=True)
         print("[引擎让位] 引擎已恢复（加载约 1 分钟）", flush=True)
 
 
@@ -875,11 +887,27 @@ def main():
                 break
             remaining = sorted(rest)
             if rnd < 3:
+                # 重掷前删掉旧 seed 还堵在队列里的任务：它们就是要重掷的，
+                # 不删会堵在队尾白烧 GPU（同 scail_heal 的 _drop_queued 教训）。
+                # 2026-11-20 e2e 实锤：3 轮自愈放弃后 7 条孤儿过渡在队列里排了
+                # 1 个多小时，产线退出后仍逐个执行，把随后的组装/引擎全饿死
+                tmap_path = ROOT / "runs" / run_id / "map.json"
+                if tmap_path.is_file():
+                    tmap = json.loads(tmap_path.read_text(encoding="utf-8"))
+                    _drop_queued([info["pid"] for pair, info in tmap.items()
+                                  if not (stage_dir / f"{pair}.mp4").is_file()])
                 prog.write(3, f"过渡自愈第{rnd}轮后仍差 {len(remaining)} 条"
                               f"（{remaining}），换 seed {seed + 1} 重掷…")
                 todo = remaining
         if remaining:
-            # 3 轮后仍缺：降级上架（缺过渡=动作切换处跳变），如实记录不掩盖
+            # 3 轮后仍缺：降级上架（缺过渡=动作切换处跳变），如实记录不掩盖。
+            # 退出前删掉最后一轮还堵在队列里的孤儿任务——make_avatar 一走就
+            # 没人回收它们了，留着只会逐个白烧 GPU（2026-11-20 e2e 实锤）
+            tmap_path = ROOT / "runs" / run_id / "map.json"
+            if tmap_path.is_file():
+                tmap = json.loads(tmap_path.read_text(encoding="utf-8"))
+                _drop_queued([info["pid"] for pair, info in tmap.items()
+                              if not (stage_dir / f"{pair}.mp4").is_file()])
             prog.write(3, f"过渡 3 轮自愈后仍差 {len(remaining)} 条：{remaining}"
                           "（带残差继续：缺过渡=动作切换处跳变的降级形态）")
         elif pairs:

@@ -12,5 +12,19 @@
     "avatar": "usermwcydrfo",
     "voice": "official_female",
     "note": "照片生成 · 语音克隆音色"
+  },
+  {
+    "id": "usermwoa0row",
+    "name": "网图测试3",
+    "avatar": "usermwoa0row",
+    "voice": "default",
+    "note": "照片生成 · 默认音色（缺过渡段，动作切换处可能跳变）"
+  },
+  {
+    "id": "usermwom7fm4",
+    "name": "网图123",
+    "avatar": "usermwom7fm4",
+    "voice": "default",
+    "note": "照片生成 · 默认音色"
   }
 ]

@@ -163,9 +163,17 @@ def cmd_submit(args):
             for node in ("19", "183"):
                 if node in graph:
                     graph[node]["inputs"]["noise_seed"] = seed
+            prefix = f"scail2/{args.run}_{seg}_s{seed}"
+            cached = Path(config.COMFY_OUTPUT) / f"{prefix}_00001_.mp4"
+            if cached.is_file() and cached.stat().st_size > 10000:
+                key = f"{seg}_s{seed}"
+                mapping[key] = {"prefix": prefix, "pid": "cached",
+                                "seg": seg, "seed": seed, "ts": 0}
+                print(f"[{key}] 复用已有产物 -> {cached.name}", flush=True)
+                continue
             pid = api.submit(graph)
             key = f"{seg}_s{seed}"
-            mapping[key] = {"prefix": f"scail2/{args.run}_{seg}_s{seed}", "pid": pid,
+            mapping[key] = {"prefix": prefix, "pid": pid,
                             "seg": seg, "seed": seed, "ts": time.time()}
             print(f"[{key}] {cap}帧 -> {pid}", flush=True)
             time.sleep(1)
