@@ -1,0 +1,4 @@
+# Windows 上从官方 sdist 编译 dlib 所需（需要 MSVC C++ Build Tools）。
+cmake==4.4.4
+setuptools==81.0.0
+wheel==0.48.0

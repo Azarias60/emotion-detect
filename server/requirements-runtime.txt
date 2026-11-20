@@ -1,0 +1,21 @@
+# HTTP, media and hardware runtime; model frameworks are installed separately.
+fastapi==0.142.4
+uvicorn==0.53.0
+python-multipart==0.0.32
+python-dotenv==1.2.4
+pydantic==2.13.5
+typing-extensions==4.16.0
+numpy==2.5.3
+# The video physiology measurement uses this cv2 provider.
+opencv-contrib-python==5.0.0.93
+scipy==1.18.1
+openai==3.26.1
+pyjwt==2.10.1
+pwdlib[argon2]>=0.2,<1
+websockets==15.0.1
+# WebRTC media plane (protocol v2). Install av from a binary wheel pinned to a
+# release with cp314 wheels: bare aiortc resolution picks a newer sdist av that
+# fails to build (Task 0 evidence, docs/validation/webrtc-spike.md §1).
+av==17.1.0
+aiortc==1.15.0
+# Capture NS/AGC uses the SpeexDSP 1.2.1 shared library (OS package; see README).

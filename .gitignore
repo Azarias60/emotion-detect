@@ -112,3 +112,16 @@ comfyui/**/.git/
 # 含 API key 的配置，永不入库（2026-11-11 用户要求）
 digital-human/livetalking/config.py
 digital-human/llm/config.py
+
+# ===== 新前端 frontend/（2026-11-20 从 PR144 并入，React + AntD6）=====
+frontend/tsconfig.tsbuildinfo
+frontend/playwright-report/
+frontend/test-results/
+# 暖暖动画素材是运行必需（25 个 mp4，17M），不受上面 *.mp4 规则限制
+!frontend/public/digital-human/*.mp4
+
+# ===== physiosense server（2026-11-20 并入，8000 服务）=====
+# 模型权重 177M，本地自备，不入库
+server/weights/
+# 运行时数据库与上传文件
+server/data/

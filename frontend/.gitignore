@@ -1,0 +1,11 @@
+node_modules
+dist
+tsconfig.tsbuildinfo
+*.local
+
+# 本地探针与临时截图（不入库，随进程生灭）
+.scratch/
+
+# Playwright evidence
+test-results/
+playwright-report/

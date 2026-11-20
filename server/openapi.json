@@ -1,0 +1,4963 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "PhysioSense Server",
+    "version": "2.0"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "summary": "Healthz",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/whip/capture": {
+      "post": {
+        "tags": [
+          "采集信令"
+        ],
+        "summary": "Whip Post",
+        "operationId": "whip_post_whip_capture_post",
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "DeviceToken": []
+          }
+        ]
+      }
+    },
+    "/whip/capture/{resource_id}": {
+      "delete": {
+        "tags": [
+          "采集信令"
+        ],
+        "summary": "Whip Delete",
+        "operationId": "whip_delete_whip_capture__resource_id__delete",
+        "security": [
+          {
+            "DeviceToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Resource Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports": {
+      "get": {
+        "tags": [
+          "报告"
+        ],
+        "summary": "Report List",
+        "operationId": "report_list_api_v1_reports_get",
+        "security": [
+          {
+            "UserToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pageNum",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Pagenum"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 10,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Type"
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Keyword"
+            }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Startdate"
+            }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Enddate"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ReportPage_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或登录凭证无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "报告"
+        ],
+        "summary": "Save Report",
+        "operationId": "save_report_api_v1_reports_post",
+        "security": [
+          {
+            "UserToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ReportSaved_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或登录凭证无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "幂等冲突（同编号不同内容）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{report_id}": {
+      "get": {
+        "tags": [
+          "报告"
+        ],
+        "summary": "Report Detail",
+        "operationId": "report_detail_api_v1_reports__report_id__get",
+        "security": [
+          {
+            "UserToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ReportDetail_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或登录凭证无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "报告不存在或区间内无报告",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "报告"
+        ],
+        "summary": "Delete Report",
+        "operationId": "delete_report_api_v1_reports__report_id__delete",
+        "security": [
+          {
+            "UserToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_NoneType_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或登录凭证无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "报告不存在或区间内无报告",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/analyses": {
+      "post": {
+        "tags": [
+          "报告"
+        ],
+        "summary": "Analyze Reports",
+        "operationId": "analyze_reports_api_v1_reports_analyses_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AnalysisResult_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或登录凭证无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "报告不存在或区间内无报告",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "UserToken": []
+          }
+        ]
+      }
+    },
+    "/api/v1/detections": {
+      "post": {
+        "tags": [
+          "能力网关"
+        ],
+        "summary": "Begin Detection",
+        "operationId": "begin_detection_api_v1_detections_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/EmotionBegin"
+                  },
+                  {
+                    "$ref": "#/components/schemas/FatigueBegin"
+                  },
+                  {
+                    "$ref": "#/components/schemas/HealthBegin"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "kind",
+                  "mapping": {
+                    "emotion": "#/components/schemas/EmotionBegin",
+                    "fatigue": "#/components/schemas/FatigueBegin",
+                    "health": "#/components/schemas/HealthBegin"
+                  }
+                },
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_DetectionBegun_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "检测输入不满足执行条件",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "任务忙（准入拒绝）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "能力网关"
+        ],
+        "summary": "Release Detection",
+        "operationId": "release_detection_api_v1_detections_delete",
+        "parameters": [
+          {
+            "name": "X-Detection-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "X-Detection-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_DetectionReleased_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/detections/finish": {
+      "post": {
+        "tags": [
+          "能力网关"
+        ],
+        "summary": "Finish Detection",
+        "operationId": "finish_detection_api_v1_detections_finish_post",
+        "parameters": [
+          {
+            "name": "X-Detection-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "X-Detection-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_DetectionFinished_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "检测输入不满足执行条件",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "任务忙（准入拒绝）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/detections/question/start": {
+      "post": {
+        "tags": [
+          "能力网关"
+        ],
+        "summary": "Start Question",
+        "operationId": "start_question_api_v1_detections_question_start_post",
+        "parameters": [
+          {
+            "name": "X-Detection-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "X-Detection-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionPosition"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_NoneType_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "检测输入不满足执行条件",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/detections/question/end": {
+      "post": {
+        "tags": [
+          "能力网关"
+        ],
+        "summary": "Close Question",
+        "operationId": "close_question_api_v1_detections_question_end_post",
+        "parameters": [
+          {
+            "name": "X-Detection-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "X-Detection-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionPosition"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_QuestionClosed_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "检测输入不满足执行条件",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "任务忙（准入拒绝）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/detections/speech": {
+      "post": {
+        "tags": [
+          "能力网关"
+        ],
+        "summary": "Detection Speech",
+        "operationId": "detection_speech_api_v1_detections_speech_post",
+        "parameters": [
+          {
+            "name": "X-Detection-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "X-Detection-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SpeechSlice_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "检测输入不满足执行条件",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "任务忙（准入拒绝）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observations/expression": {
+      "post": {
+        "tags": [
+          "能力网关"
+        ],
+        "summary": "Observe Expression",
+        "operationId": "observe_expression_api_v1_observations_expression_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ExpressionResult_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "检测输入不满足执行条件",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "任务忙（准入拒绝）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observations/behavior": {
+      "post": {
+        "tags": [
+          "能力网关"
+        ],
+        "summary": "Observe Behavior",
+        "operationId": "observe_behavior_api_v1_observations_behavior_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_BehaviorResult_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "检测输入不满足执行条件",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "任务忙（准入拒绝）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observations/speech": {
+      "post": {
+        "tags": [
+          "能力网关"
+        ],
+        "summary": "Observe Speech",
+        "operationId": "observe_speech_api_v1_observations_speech_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SpeechResult_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "检测输入不满足执行条件",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "任务忙（准入拒绝）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/observations/tongue": {
+      "post": {
+        "tags": [
+          "能力网关"
+        ],
+        "summary": "Observe Tongue",
+        "operationId": "observe_tongue_api_v1_observations_tongue_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_TongueObservationPayload_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "检测输入不满足执行条件",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "任务忙（准入拒绝）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "未分类检测流程失败（固定公开文案）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assessments/emotion-questions": {
+      "get": {
+        "tags": [
+          "能力网关"
+        ],
+        "summary": "Emotion Questions",
+        "operationId": "emotion_questions_api_v1_assessments_emotion_questions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_EmotionQuestionsPayload_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capture/status": {
+      "get": {
+        "tags": [
+          "能力网关"
+        ],
+        "summary": "Capture Status",
+        "description": "采集设备与媒体可用状态；冻结的传感器数据不越出 capture。",
+        "operationId": "capture_status_api_v1_capture_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CaptureStatusPayload_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/detections/measurements": {
+      "post": {
+        "tags": [
+          "能力网关"
+        ],
+        "summary": "Detection Measurements",
+        "operationId": "detection_measurements_api_v1_detections_measurements_post",
+        "parameters": [
+          {
+            "name": "X-Detection-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "X-Detection-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_Union_HealthMeasurementsPayload__EmotionMeasurementsPayload__FatigueReportPayload__"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "检测输入不满足执行条件",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "任务忙（准入拒绝）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游能力失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "运行时服务暂时不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "检测超时",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/fatigue": {
+      "post": {
+        "tags": [
+          "能力网关"
+        ],
+        "summary": "Fatigue Report",
+        "operationId": "fatigue_report_api_v1_reports_fatigue_post",
+        "parameters": [
+          {
+            "name": "X-Detection-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "X-Detection-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_FatigueReportPayload_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "检测输入不满足执行条件",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "任务忙（准入拒绝）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游能力失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "运行时服务暂时不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "检测超时",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/emotion": {
+      "post": {
+        "tags": [
+          "能力网关"
+        ],
+        "summary": "Emotion Report",
+        "operationId": "emotion_report_api_v1_reports_emotion_post",
+        "parameters": [
+          {
+            "name": "X-Detection-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "X-Detection-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_EmotionReportPayload_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "检测输入不满足执行条件",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "任务忙（准入拒绝）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游能力失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "运行时服务暂时不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "检测超时",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/health": {
+      "post": {
+        "tags": [
+          "能力网关"
+        ],
+        "summary": "Health Report",
+        "operationId": "health_report_api_v1_reports_health_post",
+        "parameters": [
+          {
+            "name": "X-Detection-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "X-Detection-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_HealthReportPayload_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "检测输入不满足执行条件",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "任务忙（准入拒绝）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游能力失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "运行时服务暂时不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "检测超时",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capture/preview/session": {
+      "post": {
+        "tags": [
+          "设备预览"
+        ],
+        "summary": "Preview Session",
+        "operationId": "preview_session_api_v1_capture_preview_session_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewSessionIssued"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "预览会话签发过于频繁或已达上限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capture/preview/session/{sid}": {
+      "delete": {
+        "tags": [
+          "设备预览"
+        ],
+        "summary": "Preview Session Cancel",
+        "operationId": "preview_session_cancel_api_v1_capture_preview_session__sid__delete",
+        "security": [
+          {
+            "UserToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewSessionCancelled"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或登录凭证无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "预览会话不存在或已结束",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capture/preview/offer": {
+      "post": {
+        "tags": [
+          "设备预览"
+        ],
+        "summary": "Preview Offer",
+        "operationId": "preview_offer_api_v1_capture_preview_offer_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewOffer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewAnswer"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDP 解析失败或缺少视频轨",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "预览会话令牌缺失或无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "预览会话不存在或已结束",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "设备离线或无新鲜画面",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "offer 载荷过大",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "预览连接数已达上限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "预览服务正在关闭",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PreviewSession": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "账号"
+        ],
+        "summary": "Register",
+        "operationId": "register_api_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RegisterResult_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "两次密码需一致",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "用户名已存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "账号"
+        ],
+        "summary": "Login",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_LoginResult_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "用户名或密码错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "登录失败次数过多",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "账号"
+        ],
+        "summary": "Logout",
+        "description": "注销 = 用户令牌版本自增；该用户全部已签发令牌立即失效。",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_NoneType_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或登录凭证无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "UserToken": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me": {
+      "get": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "User Info",
+        "operationId": "user_info_api_v1_users_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_UserProfile_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或登录凭证无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "UserToken": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "Update User",
+        "operationId": "update_user_api_v1_users_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_UserProfile_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或登录凭证无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "用户名已存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "UserToken": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/password": {
+      "patch": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "Update Password",
+        "operationId": "update_password_api_v1_users_me_password_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_NoneType_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或登录凭证无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "UserToken": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/avatar": {
+      "post": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "Upload Avatar",
+        "operationId": "upload_avatar_api_v1_users_me_avatar_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_avatar_api_v1_users_me_avatar_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AvatarUploaded_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或登录凭证无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "上传文件超过大小限制",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "UserToken": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalysisRequest": {
+        "properties": {
+          "startDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startdate"
+          },
+          "endDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enddate"
+          }
+        },
+        "type": "object",
+        "title": "AnalysisRequest"
+      },
+      "AnalysisResult": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "analysis": {
+            "type": "string",
+            "title": "Analysis"
+          },
+          "reportCount": {
+            "type": "integer",
+            "title": "Reportcount"
+          },
+          "typeCounts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Typecounts"
+          },
+          "startDate": {
+            "type": "string",
+            "title": "Startdate"
+          },
+          "endDate": {
+            "type": "string",
+            "title": "Enddate"
+          },
+          "recentReportIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Recentreportids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "analysis",
+          "reportCount",
+          "typeCounts",
+          "startDate",
+          "endDate",
+          "recentReportIds"
+        ],
+        "title": "AnalysisResult"
+      },
+      "AudioLevelEnvelope": {
+        "properties": {
+          "levels": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Levels"
+          },
+          "step_ms": {
+            "type": "integer",
+            "title": "Step Ms"
+          },
+          "age_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Ms"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "title": "Duration Ms"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "levels",
+          "step_ms",
+          "age_ms",
+          "duration_ms"
+        ],
+        "title": "AudioLevelEnvelope"
+      },
+      "AvatarUploaded": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "AvatarUploaded"
+      },
+      "BehaviorResult": {
+        "properties": {
+          "blink_count": {
+            "type": "integer",
+            "title": "Blink Count"
+          },
+          "blink_frequency": {
+            "type": "number",
+            "title": "Blink Frequency"
+          },
+          "yawn_count": {
+            "type": "integer",
+            "title": "Yawn Count"
+          },
+          "nod_count": {
+            "type": "integer",
+            "title": "Nod Count"
+          },
+          "nod_frequency": {
+            "type": "number",
+            "title": "Nod Frequency"
+          },
+          "perclos_percent": {
+            "type": "number",
+            "title": "Perclos Percent"
+          },
+          "speaking_percent": {
+            "type": "number",
+            "title": "Speaking Percent"
+          },
+          "face_coverage": {
+            "type": "number",
+            "title": "Face Coverage"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "blink_count",
+          "blink_frequency",
+          "yawn_count",
+          "nod_count",
+          "nod_frequency",
+          "perclos_percent",
+          "speaking_percent",
+          "face_coverage"
+        ],
+        "title": "BehaviorResult"
+      },
+      "Body_upload_avatar_api_v1_users_me_avatar_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_avatar_api_v1_users_me_avatar_post"
+      },
+      "CaptureStatusPayload": {
+        "properties": {
+          "connected": {
+            "type": "boolean",
+            "title": "Connected"
+          },
+          "frame_available": {
+            "type": "boolean",
+            "title": "Frame Available"
+          },
+          "audio": {
+            "$ref": "#/components/schemas/AudioLevelEnvelope"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "connected",
+          "frame_available",
+          "audio"
+        ],
+        "title": "CaptureStatusPayload"
+      },
+      "ConstitutionAssessmentPayload": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/ConstitutionCandidateFact"
+            },
+            "type": "array",
+            "title": "Candidates"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "candidates"
+        ],
+        "title": "ConstitutionAssessmentPayload"
+      },
+      "ConstitutionCandidateFact": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "english": {
+            "type": "string",
+            "title": "English"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "english",
+          "weight",
+          "category"
+        ],
+        "title": "ConstitutionCandidateFact"
+      },
+      "ConstitutionReportPayload": {
+        "properties": {
+          "constitution_id": {
+            "type": "integer",
+            "title": "Constitution Id"
+          },
+          "constitution_name": {
+            "type": "string",
+            "title": "Constitution Name"
+          },
+          "constitution_english": {
+            "type": "string",
+            "title": "Constitution English"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "one_line": {
+            "type": "string",
+            "title": "One Line"
+          },
+          "body_signals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Body Signals"
+          },
+          "tongue": {
+            "type": "string",
+            "title": "Tongue"
+          },
+          "mind_summary": {
+            "type": "string",
+            "title": "Mind Summary"
+          },
+          "mind_highlights": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Mind Highlights"
+          },
+          "disease_risk": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Disease Risk"
+          },
+          "environment_note": {
+            "type": "string",
+            "title": "Environment Note"
+          },
+          "advice": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Advice"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "constitution_id",
+          "constitution_name",
+          "constitution_english",
+          "category",
+          "one_line",
+          "body_signals",
+          "tongue",
+          "mind_summary",
+          "mind_highlights",
+          "disease_risk",
+          "environment_note",
+          "advice"
+        ],
+        "title": "ConstitutionReportPayload"
+      },
+      "DetectionBegun": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuestionProgress"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "token",
+          "progress"
+        ],
+        "title": "DetectionBegun"
+      },
+      "DetectionFinished": {
+        "properties": {},
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DetectionFinished"
+      },
+      "DetectionPreparation": {
+        "properties": {
+          "tongue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TongueResultInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "questions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Questions",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DetectionPreparation"
+      },
+      "DetectionReleased": {
+        "properties": {},
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DetectionReleased"
+      },
+      "EmotionBegin": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "emotion",
+            "title": "Kind"
+          },
+          "questions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Questions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "questions"
+        ],
+        "title": "EmotionBegin",
+        "description": "情绪检测开始：提交本轮题目列表，题数从列表推导。"
+      },
+      "EmotionMeasurementsPayload": {
+        "properties": {
+          "detection_id": {
+            "type": "string",
+            "title": "Detection Id"
+          },
+          "physiology": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhysiologicalMeasurementPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "physiology_diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhysiologyDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "behavior": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BehaviorResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fatigue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FatigueAssessmentPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "advice": {
+            "$ref": "#/components/schemas/FatigueAdvicePayload"
+          },
+          "expression": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExpressionResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "speech": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpeechResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "detection_id",
+          "physiology",
+          "physiology_diagnostics",
+          "behavior",
+          "fatigue",
+          "advice",
+          "expression",
+          "speech"
+        ],
+        "title": "EmotionMeasurementsPayload"
+      },
+      "EmotionQuestionsPayload": {
+        "properties": {
+          "questions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Questions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "questions"
+        ],
+        "title": "EmotionQuestionsPayload"
+      },
+      "EmotionReportPayload": {
+        "properties": {
+          "detection_id": {
+            "type": "string",
+            "title": "Detection Id"
+          },
+          "physiology": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhysiologicalMeasurementPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "physiology_diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhysiologyDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "behavior": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BehaviorResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fatigue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FatigueAssessmentPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "advice": {
+            "$ref": "#/components/schemas/FatigueAdvicePayload"
+          },
+          "expression": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExpressionResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "speech": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpeechResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "report": {
+            "$ref": "#/components/schemas/ReportTextPayload"
+          },
+          "emotion_word_count": {
+            "$ref": "#/components/schemas/EmotionWordCount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "detection_id",
+          "physiology",
+          "physiology_diagnostics",
+          "behavior",
+          "fatigue",
+          "advice",
+          "expression",
+          "speech",
+          "report",
+          "emotion_word_count"
+        ],
+        "title": "EmotionReportPayload"
+      },
+      "EmotionWordCount": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "propertyNames": {
+          "enum": [
+            "喜",
+            "怒",
+            "哀",
+            "虑"
+          ]
+        },
+        "type": "object",
+        "title": "EmotionWordCount"
+      },
+      "Envelope_AnalysisResult_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AnalysisResult"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[AnalysisResult]"
+      },
+      "Envelope_AvatarUploaded_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AvatarUploaded"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[AvatarUploaded]"
+      },
+      "Envelope_BehaviorResult_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/BehaviorResult"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[BehaviorResult]"
+      },
+      "Envelope_CaptureStatusPayload_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/CaptureStatusPayload"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[CaptureStatusPayload]"
+      },
+      "Envelope_DetectionBegun_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DetectionBegun"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[DetectionBegun]"
+      },
+      "Envelope_DetectionFinished_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DetectionFinished"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[DetectionFinished]"
+      },
+      "Envelope_DetectionReleased_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DetectionReleased"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[DetectionReleased]"
+      },
+      "Envelope_EmotionQuestionsPayload_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/EmotionQuestionsPayload"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[EmotionQuestionsPayload]"
+      },
+      "Envelope_EmotionReportPayload_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/EmotionReportPayload"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[EmotionReportPayload]"
+      },
+      "Envelope_ExpressionResult_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ExpressionResult"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[ExpressionResult]"
+      },
+      "Envelope_FatigueReportPayload_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/FatigueReportPayload"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[FatigueReportPayload]"
+      },
+      "Envelope_HealthReportPayload_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/HealthReportPayload"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[HealthReportPayload]"
+      },
+      "Envelope_LoginResult_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/LoginResult"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[LoginResult]"
+      },
+      "Envelope_NoneType_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "type": "null",
+            "title": "Data"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[NoneType]"
+      },
+      "Envelope_QuestionClosed_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/QuestionClosed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[QuestionClosed]"
+      },
+      "Envelope_RegisterResult_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/RegisterResult"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[RegisterResult]"
+      },
+      "Envelope_ReportDetail_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ReportDetail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[ReportDetail]"
+      },
+      "Envelope_ReportPage_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ReportPage"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[ReportPage]"
+      },
+      "Envelope_ReportSaved_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ReportSaved"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[ReportSaved]"
+      },
+      "Envelope_SpeechResult_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SpeechResult"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[SpeechResult]"
+      },
+      "Envelope_SpeechSlice_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SpeechSlice"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[SpeechSlice]"
+      },
+      "Envelope_TongueObservationPayload_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TongueObservationPayload"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[TongueObservationPayload]"
+      },
+      "Envelope_Union_HealthMeasurementsPayload__EmotionMeasurementsPayload__FatigueReportPayload__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthMeasurementsPayload"
+              },
+              {
+                "$ref": "#/components/schemas/EmotionMeasurementsPayload"
+              },
+              {
+                "$ref": "#/components/schemas/FatigueReportPayload"
+              }
+            ],
+            "title": "Data"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[Union[HealthMeasurementsPayload, EmotionMeasurementsPayload, FatigueReportPayload]]"
+      },
+      "Envelope_UserProfile_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "$ref": "#/components/schemas/UserProfile"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "title": "Envelope[UserProfile]"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse",
+        "description": "官方形状的错误声明：``{\"detail\": \"...\"}``（HTTPException 语义）。"
+      },
+      "ExpressionObservationFact": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "timestamp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp"
+          },
+          "class_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Index"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label",
+          "confidence",
+          "timestamp",
+          "class_index"
+        ],
+        "title": "ExpressionObservationFact"
+      },
+      "ExpressionResult": {
+        "properties": {
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/ExpressionObservationFact"
+            },
+            "type": "array",
+            "title": "Observations"
+          },
+          "class_counts": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Class Counts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "observations",
+          "class_counts"
+        ],
+        "title": "ExpressionResult"
+      },
+      "FatigueAdvicePayload": {
+        "properties": {
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "level",
+          "text"
+        ],
+        "title": "FatigueAdvicePayload"
+      },
+      "FatigueAssessmentPayload": {
+        "properties": {
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "score_fraction": {
+            "type": "number",
+            "title": "Score Fraction"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "score",
+          "level",
+          "score_fraction"
+        ],
+        "title": "FatigueAssessmentPayload"
+      },
+      "FatigueBegin": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "fatigue",
+            "title": "Kind"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "FatigueBegin",
+        "description": "疲劳检测开始：无附加输入。"
+      },
+      "FatigueReportPayload": {
+        "properties": {
+          "detection_id": {
+            "type": "string",
+            "title": "Detection Id"
+          },
+          "physiology": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhysiologicalMeasurementPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "physiology_diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhysiologyDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "behavior": {
+            "$ref": "#/components/schemas/BehaviorResult"
+          },
+          "fatigue": {
+            "$ref": "#/components/schemas/FatigueAssessmentPayload"
+          },
+          "advice": {
+            "$ref": "#/components/schemas/FatigueAdvicePayload"
+          },
+          "measurement_notice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measurement Notice"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "detection_id",
+          "physiology",
+          "physiology_diagnostics",
+          "behavior",
+          "fatigue",
+          "advice",
+          "measurement_notice"
+        ],
+        "title": "FatigueReportPayload"
+      },
+      "HRVMeasurementFact": {
+        "properties": {
+          "sdnn_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sdnn Ms"
+          },
+          "rmssd_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rmssd Ms"
+          },
+          "nn50": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nn50"
+          },
+          "pnn50_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pnn50 Percent"
+          },
+          "lf_hf_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lf Hf Ratio"
+          },
+          "rr_interval_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rr Interval Count"
+          },
+          "rr_source": {
+            "type": "string",
+            "const": "rppg_peak_derived",
+            "title": "Rr Source"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sdnn_ms",
+          "rmssd_ms",
+          "nn50",
+          "pnn50_percent",
+          "lf_hf_ratio",
+          "rr_interval_count",
+          "rr_source"
+        ],
+        "title": "HRVMeasurementFact"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthAnswerItem": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "answer"
+        ],
+        "title": "HealthAnswerItem"
+      },
+      "HealthBegin": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "health",
+            "title": "Kind"
+          },
+          "preparation": {
+            "$ref": "#/components/schemas/DetectionPreparation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "preparation"
+        ],
+        "title": "HealthBegin",
+        "description": "健康问诊开始：预备数据（望诊事实与题目）必需，缺失即 422。"
+      },
+      "HealthMeasurementsPayload": {
+        "properties": {
+          "detection_id": {
+            "type": "string",
+            "title": "Detection Id"
+          },
+          "physiology": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhysiologicalMeasurementPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "physiology_diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhysiologyDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "behavior": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BehaviorResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fatigue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FatigueAssessmentPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "advice": {
+            "$ref": "#/components/schemas/FatigueAdvicePayload"
+          },
+          "speech": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpeechResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tongue_quality": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TongueQualityPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tongue_recognition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TongueRecognitionPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "constitution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConstitutionAssessmentPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "constitution_report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConstitutionReportPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/HealthAnswerItem"
+            },
+            "type": "array",
+            "title": "Answers"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "detection_id",
+          "physiology",
+          "physiology_diagnostics",
+          "behavior",
+          "fatigue",
+          "advice",
+          "speech",
+          "tongue_quality",
+          "tongue_recognition",
+          "constitution",
+          "constitution_report",
+          "answers"
+        ],
+        "title": "HealthMeasurementsPayload"
+      },
+      "HealthReportPayload": {
+        "properties": {
+          "detection_id": {
+            "type": "string",
+            "title": "Detection Id"
+          },
+          "physiology": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhysiologicalMeasurementPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "physiology_diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhysiologyDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "behavior": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BehaviorResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fatigue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FatigueAssessmentPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "advice": {
+            "$ref": "#/components/schemas/FatigueAdvicePayload"
+          },
+          "speech": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpeechResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tongue_quality": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TongueQualityPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tongue_recognition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TongueRecognitionPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "constitution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConstitutionAssessmentPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "constitution_report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConstitutionReportPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/HealthAnswerItem"
+            },
+            "type": "array",
+            "title": "Answers"
+          },
+          "report": {
+            "$ref": "#/components/schemas/ReportTextPayload"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "detection_id",
+          "physiology",
+          "physiology_diagnostics",
+          "behavior",
+          "fatigue",
+          "advice",
+          "speech",
+          "tongue_quality",
+          "tongue_recognition",
+          "constitution",
+          "constitution_report",
+          "answers",
+          "report"
+        ],
+        "title": "HealthReportPayload"
+      },
+      "JsonValue": {},
+      "LoginRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 3,
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 5,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest"
+      },
+      "LoginResult": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserProfile"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "token",
+          "user"
+        ],
+        "title": "LoginResult"
+      },
+      "PasswordUpdateRequest": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "newPassword": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 5,
+            "title": "Newpassword"
+          },
+          "newRePassword": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 5,
+            "title": "Newrepassword"
+          }
+        },
+        "type": "object",
+        "required": [
+          "password",
+          "newPassword",
+          "newRePassword"
+        ],
+        "title": "PasswordUpdateRequest"
+      },
+      "PhysiologicalMeasurementPayload": {
+        "properties": {
+          "heart_rate_bpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heart Rate Bpm"
+          },
+          "respiration_rate_per_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Respiration Rate Per Min"
+          },
+          "hrv": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HRVMeasurementFact"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "heart_rate_bpm",
+          "respiration_rate_per_min",
+          "hrv"
+        ],
+        "title": "PhysiologicalMeasurementPayload",
+        "description": "Measurements derived from the FacePhys video window."
+      },
+      "PhysiologyDiagnostics": {
+        "properties": {
+          "hrv_status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "no_video",
+              "no_signal",
+              "collecting",
+              "low_signal_quality",
+              "unavailable"
+            ],
+            "title": "Hrv Status"
+          },
+          "respiration_status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "no_video",
+              "no_signal",
+              "collecting",
+              "low_signal_quality",
+              "unavailable"
+            ],
+            "title": "Respiration Status"
+          },
+          "signal_quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signal Quality"
+          },
+          "window_seconds": {
+            "type": "number",
+            "title": "Window Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hrv_status",
+          "respiration_status",
+          "signal_quality",
+          "window_seconds"
+        ],
+        "title": "PhysiologyDiagnostics"
+      },
+      "PreviewAnswer": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "sdp": {
+            "type": "string",
+            "title": "Sdp"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "sdp"
+        ],
+        "title": "PreviewAnswer",
+        "description": "WebRTC 应答（SDP），按真实协议裸返回，不套业务封套。"
+      },
+      "PreviewOffer": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "offer",
+            "title": "Type"
+          },
+          "sdp": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Sdp"
+          },
+          "preview_session_id": {
+            "type": "string",
+            "title": "Preview Session Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "sdp",
+          "preview_session_id"
+        ],
+        "title": "PreviewOffer",
+        "description": "浏览器发起协商的请求体：形状由框架解析（模型校验），业务守卫\n（关闭态、大小、令牌、配额、SDP 深度解析、设备状态）留在管理器。"
+      },
+      "PreviewSessionCancelled": {
+        "properties": {
+          "cancelled": {
+            "type": "string",
+            "title": "Cancelled"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "cancelled"
+        ],
+        "title": "PreviewSessionCancelled"
+      },
+      "PreviewSessionIssued": {
+        "properties": {
+          "preview_session_id": {
+            "type": "string",
+            "title": "Preview Session Id"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "preview_session_id",
+          "token",
+          "expires_in"
+        ],
+        "title": "PreviewSessionIssued",
+        "description": "公开签发短期预览会话，浏览器持会话令牌完成 offer 协商。"
+      },
+      "QuestionClosed": {
+        "properties": {
+          "closed_index": {
+            "type": "integer",
+            "title": "Closed Index"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuestionProgress"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "closed_index",
+          "answer",
+          "next"
+        ],
+        "title": "QuestionClosed"
+      },
+      "QuestionPosition": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Index"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index"
+        ],
+        "title": "QuestionPosition"
+      },
+      "QuestionProgress": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "question",
+          "index",
+          "total"
+        ],
+        "title": "QuestionProgress",
+        "description": "会话当前题进度：题干、题号与总题数；无问答或题目用尽为 null。"
+      },
+      "RegisterRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 3,
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 5,
+            "title": "Password"
+          },
+          "rePassword": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 5,
+            "title": "Repassword"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password",
+          "rePassword"
+        ],
+        "title": "RegisterRequest"
+      },
+      "RegisterResult": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "RegisterResult"
+      },
+      "ReportCreateRequest": {
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Idempotencykey"
+          },
+          "type": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Type",
+            "default": "emotion"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Title",
+            "default": "检测报告"
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Summary",
+            "default": ""
+          },
+          "result": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Result"
+          },
+          "rawReport": {
+            "type": "string",
+            "title": "Rawreport",
+            "default": ""
+          },
+          "fileAddress": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Fileaddress",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "idempotencyKey"
+        ],
+        "title": "ReportCreateRequest"
+      },
+      "ReportDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "createUserId": {
+            "type": "integer",
+            "title": "Createuserid"
+          },
+          "createTime": {
+            "type": "string",
+            "title": "Createtime"
+          },
+          "updateTime": {
+            "type": "string",
+            "title": "Updatetime"
+          },
+          "result": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Result"
+          },
+          "rawReport": {
+            "type": "string",
+            "title": "Rawreport"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "title",
+          "summary",
+          "address",
+          "createUserId",
+          "createTime",
+          "updateTime",
+          "result",
+          "rawReport"
+        ],
+        "title": "ReportDetail"
+      },
+      "ReportItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "createUserId": {
+            "type": "integer",
+            "title": "Createuserid"
+          },
+          "createTime": {
+            "type": "string",
+            "title": "Createtime"
+          },
+          "updateTime": {
+            "type": "string",
+            "title": "Updatetime"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "title",
+          "summary",
+          "address",
+          "createUserId",
+          "createTime",
+          "updateTime"
+        ],
+        "title": "ReportItem"
+      },
+      "ReportPage": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReportItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "pageNum": {
+            "type": "integer",
+            "title": "Pagenum"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "total",
+          "items",
+          "pageNum",
+          "pageSize"
+        ],
+        "title": "ReportPage"
+      },
+      "ReportSaved": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ReportSaved"
+      },
+      "ReportTextPayload": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ReportTextPayload"
+      },
+      "SpeechResult": {
+        "properties": {
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/SpeechSegmentFact"
+            },
+            "type": "array",
+            "title": "Segments"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "segments"
+        ],
+        "title": "SpeechResult"
+      },
+      "SpeechSegmentFact": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "SpeechSegmentFact"
+      },
+      "SpeechSlice": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "SpeechSlice"
+      },
+      "TongueDimensionInput": {
+        "properties": {
+          "class_name": {
+            "type": "string",
+            "title": "Class Name"
+          },
+          "probability": {
+            "type": "number",
+            "title": "Probability"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "class_name",
+          "probability"
+        ],
+        "title": "TongueDimensionInput"
+      },
+      "TongueDimensionItem": {
+        "properties": {
+          "class_name": {
+            "type": "string",
+            "title": "Class Name"
+          },
+          "probability": {
+            "type": "number",
+            "title": "Probability"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "class_name",
+          "probability",
+          "label"
+        ],
+        "title": "TongueDimensionItem"
+      },
+      "TongueObservationPayload": {
+        "properties": {
+          "tongue": {
+            "$ref": "#/components/schemas/TongueResultPayload"
+          },
+          "questions": {
+            "$ref": "#/components/schemas/TongueQuestionsPayload"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tongue",
+          "questions"
+        ],
+        "title": "TongueObservationPayload",
+        "description": "望诊组合响应：舌象四字段与题目并列。"
+      },
+      "TongueQualityPayload": {
+        "properties": {
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height"
+          },
+          "brightness": {
+            "type": "number",
+            "title": "Brightness"
+          },
+          "sharpness": {
+            "type": "number",
+            "title": "Sharpness"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "passed",
+          "warnings",
+          "width",
+          "height",
+          "brightness",
+          "sharpness"
+        ],
+        "title": "TongueQualityPayload"
+      },
+      "TongueQuestionsPayload": {
+        "properties": {
+          "questions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Questions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "questions"
+        ],
+        "title": "TongueQuestionsPayload"
+      },
+      "TongueRecognitionInput": {
+        "properties": {
+          "crack": {
+            "$ref": "#/components/schemas/TongueDimensionInput"
+          },
+          "coated": {
+            "$ref": "#/components/schemas/TongueDimensionInput"
+          },
+          "color": {
+            "$ref": "#/components/schemas/TongueDimensionInput"
+          },
+          "indentation": {
+            "$ref": "#/components/schemas/TongueDimensionInput"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "crack",
+          "coated",
+          "color",
+          "indentation"
+        ],
+        "title": "TongueRecognitionInput"
+      },
+      "TongueRecognitionPayload": {
+        "properties": {
+          "crack": {
+            "$ref": "#/components/schemas/TongueDimensionItem"
+          },
+          "coated": {
+            "$ref": "#/components/schemas/TongueDimensionItem"
+          },
+          "color": {
+            "$ref": "#/components/schemas/TongueDimensionItem"
+          },
+          "indentation": {
+            "$ref": "#/components/schemas/TongueDimensionItem"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "crack",
+          "coated",
+          "color",
+          "indentation"
+        ],
+        "title": "TongueRecognitionPayload"
+      },
+      "TongueResultInput": {
+        "properties": {
+          "quality": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TongueQualityPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recognition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TongueRecognitionInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "constitution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConstitutionAssessmentPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "constitution_report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConstitutionReportPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TongueResultInput"
+      },
+      "TongueResultPayload": {
+        "properties": {
+          "quality": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TongueQualityPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recognition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TongueRecognitionPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "constitution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConstitutionAssessmentPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "constitution_report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConstitutionReportPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "quality",
+          "recognition",
+          "constitution",
+          "constitution_report"
+        ],
+        "title": "TongueResultPayload"
+      },
+      "UserProfile": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "gender": {
+            "type": "string",
+            "title": "Gender"
+          },
+          "age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "userPic": {
+            "type": "string",
+            "title": "Userpic"
+          },
+          "createTime": {
+            "type": "string",
+            "title": "Createtime"
+          },
+          "updateTime": {
+            "type": "string",
+            "title": "Updatetime"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "gender",
+          "age",
+          "email",
+          "userPic",
+          "createTime",
+          "updateTime"
+        ],
+        "title": "UserProfile"
+      },
+      "UserUpdateRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 3,
+            "title": "Username"
+          },
+          "gender": {
+            "type": "string",
+            "maxLength": 16,
+            "title": "Gender",
+            "default": ""
+          },
+          "age": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 120.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age"
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Email",
+            "default": ""
+          },
+          "userPic": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Userpic",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "username"
+        ],
+        "title": "UserUpdateRequest"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "DeviceToken": {
+        "type": "http",
+        "description": "设备接入令牌（部署配置注入）",
+        "scheme": "bearer"
+      },
+      "UserToken": {
+        "type": "http",
+        "description": "Identity 登录令牌",
+        "scheme": "bearer"
+      },
+      "PreviewSession": {
+        "type": "http",
+        "description": "预览会话握手令牌（preview/session 签发，单次使用）",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+@media (min-width: 961px) {
+  .detect-layout {
+    grid-template-columns: minmax(155px, .72fr) minmax(0, 2.13fr) minmax(200px, .95fr);
+    min-block-size: 100%;
+  }
+}
+
+.detect-report {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.detect-report-copy { max-block-size: 12rem; overflow: auto; }
+.detect-question {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: var(--ant-border-radius);
+  background: var(--ant-color-fill-quaternary);
+  overflow-wrap: anywhere;
+}
+.detect-capture-footer { display: grid; gap: 12px; }
+.detect-actionbar { display: flex; flex-wrap: wrap; gap: 8px; }

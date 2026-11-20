@@ -1,0 +1,35 @@
+# 完整模型环境；轻量服务/测试环境使用 requirements-runtime.txt / requirements-dev.txt。
+# 默认从 PyPI 安装。需要 CUDA 时先从 PyTorch 官方匹配的轮子源安装对应版本；
+# 下方不绑定本机 CUDA 后缀，避免普通 pip/uv 安装无法解析。
+
+-r requirements-runtime.txt
+
+# Video and numerical analysis
+dlib==20.0.1
+# Exact FacePhys reference implementation used by fpy-copy.
+--find-links .wheels
+open-rppg==0.1.1+onnx.2
+heartpy==1.2.7
+# HeartPy 1.2.7 imports pkg_resources.
+setuptools==80.10.2
+
+# 表情 / 舌象 / 语音模型运行时
+# PyTorch 三件套版本匹配说明见 https://pytorch.org/get-started/previous-versions/
+torch==2.11.0
+torchvision==0.26.0
+torchaudio==2.11.0
+funasr==1.4.16
+# 保持与现有 ASR API 兼容的 Python 3.12 tokenizer 栈
+transformers==4.57.6
+tokenizers==0.22.2
+basetrainer==1.0.0
+pybaseutils==2.4.34
+Pillow==12.3.0
+matplotlib==3.11.2
+requests==2.34.2
+onnx==1.23.2
+onnxruntime==1.30.0
+PyYAML==6.0.3
+
+# 血压模型（weights/hrv/resnet_ppg_nonmixed.h5，缺失即为契约行为）与
+# 本地音频回放（pyaudio）按需手动安装，不进本清单。

@@ -1,0 +1,1 @@
+"""Standalone observable behavior capability."""

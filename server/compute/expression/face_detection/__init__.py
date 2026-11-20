@@ -1,0 +1,1 @@
+"""Independent face detection capability."""

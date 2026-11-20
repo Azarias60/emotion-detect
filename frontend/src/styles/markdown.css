@@ -1,0 +1,18 @@
+.markdown-content { min-width: 0; max-width: 100%; overflow-x: auto; overflow-wrap: anywhere; line-height: 1.75; }
+.markdown-content > * + * { margin-top: .85em; }
+.markdown-content :is(h1, h2, h3, h4, h5, h6) { line-height: 1.4; }
+.markdown-content :is(ul, ol) { padding-inline-start: 1.45em; }
+.markdown-content ul { list-style: disc; }
+.markdown-content ol { list-style: decimal; }
+.markdown-content li + li { margin-top: .3em; }
+.markdown-content li::marker { color: color-mix(in srgb, currentColor 60%, transparent); }
+
+.markdown-content a { text-decoration: underline; }
+.markdown-content blockquote { border-inline-start: 2px solid color-mix(in srgb, currentColor 60%, transparent); padding-inline-start: .8em; }
+.markdown-content :is(pre, code) { background: var(--color-slate-950); border-radius: var(--radius-lg); }
+.markdown-content pre { overflow: auto; padding: .65em .8em; }
+.markdown-content code { padding: .08em .24em; }
+.markdown-content pre code { padding: 0; background: none; }
+.markdown-content table { width: max-content; min-width: 100%; border-collapse: collapse; }
+.markdown-content :is(th, td) { padding: .38em .65em; border: 1px solid color-mix(in srgb, currentColor 25%, transparent); text-align: start; }
+.markdown-content th { background: var(--color-slate-950); }

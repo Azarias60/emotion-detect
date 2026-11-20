@@ -1,0 +1,3 @@
+# 可选能力依赖，按需安装：
+#   PyAudio —— 仅用于本地监听 MCU 采集音频（ENABLE_MCU_AUDIO_PLAYBACK=1），不影响录制。
+PyAudio==0.2.14

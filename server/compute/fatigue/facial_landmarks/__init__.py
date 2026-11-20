@@ -1,0 +1,1 @@
+"""Facial landmark extraction capability."""
